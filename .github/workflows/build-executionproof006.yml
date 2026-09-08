@@ -1,0 +1,173 @@
+name: NEXUS V005 C002 EXECUTION PROOF 006 - Build APK
+
+on:
+  push:
+    branches:
+      - v005-executionproof006
+    paths:
+      - '.github/workflows/build-executionproof006.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build EXECUTION PROOF 006 debug APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout execution proof branch
+        uses: actions/checkout@v6
+
+      - name: Verify frozen C002 input
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '26b5b157b487eda3a0c92198066d39beb5e6eb1149a3c4a705b49274c636eed4  V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip' | sha256sum -c -
+
+      - name: Validate frozen C002 before derivation
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir base
+          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d base
+          ROOT='base/V005_ANDROID_CHROMIUM_WEBVIEW_C002'
+          cd "$ROOT"
+          chmod +x run_core_tests.sh run_validation.sh
+          ./run_validation.sh | tee /tmp/C002_VALIDATION.txt
+          grep -F 'RESULT pass=25 fail=0' /tmp/C002_VALIDATION.txt
+          grep -F 'STATIC_RESULT pass=10 fail=0' /tmp/C002_VALIDATION.txt
+
+      - name: Derive EXECUTION PROOF 006
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp -a base work
+          ROOT='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002'
+          cp executionproof006/MainActivity.kt "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt"
+          cp executionproof006/chatgpt_provider_c002.js "$ROOT/app/src/main/assets/nexus/chatgpt_provider_c002.js"
+          cp executionproof006/run_executionproof006_validation.sh "$ROOT/run_executionproof006_validation.sh"
+          chmod +x "$ROOT/run_executionproof006_validation.sh"
+
+          cp "$ROOT/app/src/main/java/nexus/android/c002/web/OriginPolicy.kt" /tmp/OriginPolicy.C002.kt
+
+          python3 - "$ROOT" <<'PY'
+          from pathlib import Path
+          import sys
+          root=Path(sys.argv[1])
+
+          p=root/'app/build.gradle.kts'
+          s=p.read_text()
+          s=s.replace('applicationId = "nexus.android.c002"','applicationId = "nexus.android.c002.executionproof006"')
+          s=s.replace('versionCode = 2','versionCode = 7')
+          s=s.replace('versionName = "0.0.2-c002"','versionName = "0.0.7-c002-executionproof006"')
+          p.write_text(s)
+
+          p=root/'app/src/main/AndroidManifest.xml'
+          p.write_text(p.read_text().replace('android:label="NEXUS C002"','android:label="NEXUS C002 EXECUTION PROOF 006"'))
+
+          p=root/'app/src/main/res/layout/activity_main.xml'
+          s=p.read_text()
+          s=s.replace('android:padding="12dp"\n        android:text="NEXUS C002 — initializing"',
+                      'android:padding="8dp"\n        android:maxLines="2"\n        android:ellipsize="end"\n        android:clickable="true"\n        android:focusable="true"\n        android:text="EXECUTION PROOF 006 — initializing"')
+          p.write_text(s)
+
+          p=root/'app/src/main/java/nexus/android/c002/web/OriginPolicy.kt'
+          s=p.read_text()
+          needle='            host == "anthropic.com" || host.endsWith(".anthropic.com")\n'
+          replacement='            host == "anthropic.com" || host.endsWith(".anthropic.com") ||\n            host == "accounts.google.com" ||\n            host == "accounts.youtube.com"\n'
+          if s.count(needle)!=1: raise SystemExit('OriginPolicy injection point mismatch')
+          p.write_text(s.replace(needle,replacement))
+          PY
+
+          sha256sum \
+            "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt" \
+            "$ROOT/app/src/main/assets/nexus/chatgpt_provider_c002.js" \
+            "$ROOT/app/src/main/java/nexus/android/c002/web/OriginPolicy.kt" \
+            "$ROOT/app/src/main/java/nexus/android/c002/web/NexusWebBridge.kt" \
+            "$ROOT/app/src/main/assets/nexus/claude_provider_c002.js" \
+            "$ROOT/app/src/main/java/nexus/android/c002/core/TransportContract.kt" \
+            > /tmp/EXECUTION_PROOF_006_SOURCE_SHA256.txt
+
+          test "$(sha256sum "$ROOT/app/src/main/java/nexus/android/c002/web/OriginPolicy.kt" | cut -d' ' -f1)" = '80241cf1581bdac6e87f602d300acebef5785f93e9bb570de4925b99118b76b3'
+          grep -F 'host == "accounts.google.com"' "$ROOT/app/src/main/java/nexus/android/c002/web/OriginPolicy.kt"
+          grep -F 'host == "accounts.youtube.com"' "$ROOT/app/src/main/java/nexus/android/c002/web/OriginPolicy.kt"
+          ! grep -F 'endsWith(".google.com")' "$ROOT/app/src/main/java/nexus/android/c002/web/OriginPolicy.kt"
+          ! grep -F 'endsWith(".youtube.com")' "$ROOT/app/src/main/java/nexus/android/c002/web/OriginPolicy.kt"
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 9.6.0
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Verify Android build environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${ANDROID_HOME:-}"
+          test -d "$ANDROID_HOME/platforms/android-36"
+          test -d "$ANDROID_HOME/build-tools/36.0.0"
+          java -version
+          gradle --version
+
+      - name: Run C002 core contract tests on derivative
+        working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./run_core_tests.sh | tee /tmp/EXEC006_CORE.txt
+          grep -F 'RESULT pass=25 fail=0' /tmp/EXEC006_CORE.txt
+
+      - name: Run EXECUTION PROOF 006 validation
+        working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./run_executionproof006_validation.sh | tee /tmp/EXEC006_VALIDATION.txt
+          grep -F 'EXECUTION_PROOF_006_STATIC_RESULT pass=44 fail=0' /tmp/EXEC006_VALIDATION.txt
+
+      - name: Build proof APK
+        working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Prepare proof artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/build/outputs/apk/debug/app-debug.apk'
+          test -f "$APK"
+          cp "$APK" NEXUS-V005-C002-EXECUTION-PROOF-006-debug.apk
+          sha256sum NEXUS-V005-C002-EXECUTION-PROOF-006-debug.apk > NEXUS-V005-C002-EXECUTION-PROOF-006-debug.apk.sha256
+          cp /tmp/EXECUTION_PROOF_006_SOURCE_SHA256.txt .
+          cp /tmp/C002_VALIDATION.txt .
+          cp /tmp/EXEC006_VALIDATION.txt .
+          cat NEXUS-V005-C002-EXECUTION-PROOF-006-debug.apk.sha256
+
+      - name: Upload proof APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-V005-C002-EXECUTION-PROOF-006-debug
+          path: NEXUS-V005-C002-EXECUTION-PROOF-006-debug.apk
+          if-no-files-found: error
+
+      - name: Upload proof evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-V005-C002-EXECUTION-PROOF-006-evidence
+          path: |
+            NEXUS-V005-C002-EXECUTION-PROOF-006-debug.apk.sha256
+            EXECUTION_PROOF_006_SOURCE_SHA256.txt
+            C002_VALIDATION.txt
+            EXEC006_VALIDATION.txt
+          if-no-files-found: error
