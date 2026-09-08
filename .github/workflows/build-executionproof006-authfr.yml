@@ -1,0 +1,198 @@
+name: NEXUS V005 EXECUTION PROOF 006 AUTHFR - Build APK
+
+on:
+  push:
+    branches: [v005-executionproof006-authfr]
+    paths: ['.github/workflows/build-executionproof006-authfr.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate frozen C002
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '26b5b157b487eda3a0c92198066d39beb5e6eb1149a3c4a705b49274c636eed4  V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip' | sha256sum -c -
+          mkdir base
+          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d base
+          cd base/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+          chmod +x run_validation.sh run_core_tests.sh
+          ./run_validation.sh | tee /tmp/C002_VALIDATION.txt
+          grep -F 'RESULT pass=25 fail=0' /tmp/C002_VALIDATION.txt
+          grep -F 'STATIC_RESULT pass=10 fail=0' /tmp/C002_VALIDATION.txt
+
+      - name: Derive execution proof AUTHFR
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp -a base work
+          ROOT='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002'
+          cp executionproof006/MainActivity.kt "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt"
+          cp executionproof006/chatgpt_provider_c002.js "$ROOT/app/src/main/assets/nexus/chatgpt_provider_c002.js"
+
+          python3 - "$ROOT" <<'PY'
+          from pathlib import Path
+          import sys
+          r=Path(sys.argv[1])
+
+          p=r/'app/build.gradle.kts'
+          s=p.read_text()
+          s=s.replace('applicationId = "nexus.android.c002"','applicationId = "nexus.android.c002.executionproof006.authfr"')
+          s=s.replace('versionCode = 2','versionCode = 9')
+          s=s.replace('versionName = "0.0.2-c002"','versionName = "0.0.9-c002-executionproof006-authfr"')
+          p.write_text(s)
+
+          p=r/'app/src/main/AndroidManifest.xml'
+          s=p.read_text()
+          old='android:label="NEXUS Android C002"'
+          if s.count(old)!=1: raise SystemExit('manifest label baseline mismatch')
+          p.write_text(s.replace(old,'android:label="NEXUS C002 EXECUTION PROOF 006 AUTHFR"'))
+
+          p=r/'app/src/main/res/layout/activity_main.xml'
+          s=p.read_text()
+          needle='android:padding="12dp"\n        android:text="NEXUS C002 — initializing"'
+          repl='android:padding="8dp"\n        android:maxLines="2"\n        android:ellipsize="end"\n        android:clickable="true"\n        android:focusable="true"\n        android:text="EXECUTION PROOF 006 AUTHFR — initializing"'
+          if s.count(needle)!=1: raise SystemExit('layout baseline mismatch')
+          p.write_text(s.replace(needle,repl))
+
+          p=r/'app/src/main/java/nexus/android/c002/MainActivity.kt'
+          s=p.read_text()
+          old='nexus_provider_profile_c002_executionproof006'
+          if s.count(old)!=1: raise SystemExit('profile source mismatch')
+          p.write_text(s.replace(old,'nexus_provider_profile_c002_executionproof006_authfr'))
+
+          p=r/'app/src/main/java/nexus/android/c002/web/OriginPolicy.kt'
+          s=p.read_text()
+          needle='            host == "anthropic.com" || host.endsWith(".anthropic.com")\n'
+          repl='            host == "anthropic.com" || host.endsWith(".anthropic.com") ||\n            host == "accounts.google.com" ||\n            host == "accounts.youtube.com" ||\n            host == "accounts.google.fr"\n'
+          if s.count(needle)!=1: raise SystemExit('policy baseline mismatch')
+          p.write_text(s.replace(needle,repl))
+          PY
+
+          sha256sum "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt" \
+                    "$ROOT/app/src/main/assets/nexus/chatgpt_provider_c002.js" \
+                    "$ROOT/app/src/main/java/nexus/android/c002/web/OriginPolicy.kt" \
+                    "$ROOT/app/src/main/java/nexus/android/c002/web/NexusWebBridge.kt" \
+                    "$ROOT/app/src/main/assets/nexus/claude_provider_c002.js" \
+                    > /tmp/AUTHFR_SOURCE_SHA256.txt
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Validate derivative
+        working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./run_core_tests.sh | tee /tmp/AUTHFR_CORE.txt
+          grep -F 'RESULT pass=25 fail=0' /tmp/AUTHFR_CORE.txt
+          MAIN='app/src/main/java/nexus/android/c002/MainActivity.kt'
+          POLICY='app/src/main/java/nexus/android/c002/web/OriginPolicy.kt'
+          CHAT='app/src/main/assets/nexus/chatgpt_provider_c002.js'
+          CLAUDE='app/src/main/assets/nexus/claude_provider_c002.js'
+          PASS=0; FAIL=0
+          check(){ id="$1"; shift; if "$@"; then echo "PASS $id"; PASS=$((PASS+1)); else echo "FAIL $id"; FAIL=$((FAIL+1)); fi; }
+          contains(){ grep -Fq "$2" "$1"; }
+          check A01_package contains app/build.gradle.kts 'applicationId = "nexus.android.c002.executionproof006.authfr"'
+          check A02_version contains app/build.gradle.kts 'versionCode = 9'
+          check A03_label contains app/src/main/AndroidManifest.xml 'NEXUS C002 EXECUTION PROOF 006 AUTHFR'
+          check A04_profile contains "$MAIN" 'nexus_provider_profile_c002_executionproof006_authfr'
+          check A05_google_com_exact contains "$POLICY" 'host == "accounts.google.com"'
+          check A06_youtube_exact contains "$POLICY" 'host == "accounts.youtube.com"'
+          check A07_google_fr_exact contains "$POLICY" 'host == "accounts.google.fr"'
+          check A08_no_google_com_wildcard bash -c "! grep -Fq 'endsWith(\".google.com\")' '$POLICY'"
+          check A09_no_youtube_wildcard bash -c "! grep -Fq 'endsWith(\".youtube.com\")' '$POLICY'"
+          check A10_no_google_fr_wildcard bash -c "! grep -Fq 'endsWith(\".google.fr\")' '$POLICY'"
+          check A11_no_plain_google_fr bash -c "! grep -Fq 'host == \"google.fr\"' '$POLICY'"
+          check A12_https_only contains "$POLICY" 'if (!uri.scheme.equals("https", ignoreCase = true)) return false'
+          check A13_bridge_origins_clean bash -c "python3 - '$POLICY' <<'PY'
+import sys
+s=open(sys.argv[1]).read(); bridge=s.split('fun isBridgeOriginAllowed',1)[0]
+assert 'google' not in bridge and 'youtube' not in bridge
+PY"
+          check A14_bridge_unchanged bash -c "echo 'a842eb5d15d23b0ace09674585cefbfba2a753c155eeb5b0c0df6aaf9324275a  app/src/main/java/nexus/android/c002/web/NexusWebBridge.kt' | sha256sum -c - >/dev/null"
+          check A15_claude_unchanged bash -c "echo 'f1dc78cdbadcc252a529c2db86b15ac42a92f0f2c132181cd1072bc24b131366  app/src/main/assets/nexus/claude_provider_c002.js' | sha256sum -c - >/dev/null"
+          check A16_chat_adapter_executionproof_unchanged bash -c "echo '128cc17329ca70547085a774ff4487d0aa62417944945e8dc35763675010fa79  app/src/main/assets/nexus/chatgpt_provider_c002.js' | sha256sum -c - >/dev/null"
+          check A17_describe_before_execute python3 - "$MAIN" <<'PY'
+import sys
+s=open(sys.argv[1]).read()
+assert s.index('describePassed = true') < s.index('startExecutionProof(origin)') < s.index('.put("type", "EXECUTE_JOB")')
+PY
+          check A18_single_provider contains "$MAIN" 'provider = SelectedProvider.CHATGPT'
+          check A19_external_false contains "$MAIN" '.put("external_research", false)'
+          check A20_canonical_false contains "$MAIN" '.put("canonical_write", false)'
+          check A21_mutation_none contains "$MAIN" '.put("state_mutation_mode", "NONE")'
+          check A22_truth_none contains "$MAIN" '.put("truth_winner", "NONE")'
+          check A23_ack_gate contains "$MAIN" 'RuntimeGate.validateAck'
+          check A24_terminal_receipt contains "$MAIN" 'TERMINAL_RECEIPT_PASS'
+          check A25_answer_token contains "$MAIN" 'NEXUS_EXECUTION_PROOF_006_OK'
+          check A26_receipt_validation contains "$MAIN" 'engine.validateReceipt(job, receipt)'
+          check A27_transport contains "$MAIN" 'ANDROID_WEBVIEW_CHROMIUM_BRIDGE'
+          check A28_no_webview_debug contains "$MAIN" 'WebView.setWebContentsDebuggingEnabled(false)'
+          check A29_sticky_auth contains "$CHAT" 'LAST_STABLE_AUTH_SIGNAL_RETAINED_DURING_TRANSIENT_DOM_STATE'
+          check A30_no_chrome_runtime bash -c "! grep -Fq 'chrome.runtime' '$CHAT' '$CLAUDE'"
+          check A31_no_add_js_interface bash -c "! grep -R -Fq 'addJavascriptInterface' app/src/main/java '$CHAT' '$CLAUDE'"
+          check A32_single_job_guard contains "$MAIN" 'if (!describePassed || executionStarted || proofStopped) return'
+          node --check "$CHAT"
+          node --check "$CLAUDE"
+          printf 'EXECUTION_PROOF_006_AUTHFR_STATIC_RESULT pass=%d fail=%d\n' "$PASS" "$FAIL" | tee /tmp/AUTHFR_VALIDATION.txt
+          test "$PASS" -eq 32
+          test "$FAIL" -eq 0
+
+      - name: Build APK
+        working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+        shell: bash
+        run: gradle :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Prepare artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/build/outputs/apk/debug/app-debug.apk NEXUS-V005-C002-EXECUTION-PROOF-006-AUTHFR-debug.apk
+          sha256sum NEXUS-V005-C002-EXECUTION-PROOF-006-AUTHFR-debug.apk > NEXUS-V005-C002-EXECUTION-PROOF-006-AUTHFR-debug.apk.sha256
+          cp /tmp/C002_VALIDATION.txt .
+          cp /tmp/AUTHFR_CORE.txt .
+          cp /tmp/AUTHFR_VALIDATION.txt .
+          cp /tmp/AUTHFR_SOURCE_SHA256.txt .
+          (cd work && zip -qr ../V005_ANDROID_CHROMIUM_WEBVIEW_C002_EXECUTION_PROOF_006_AUTHFR.zip V005_ANDROID_CHROMIUM_WEBVIEW_C002)
+          sha256sum V005_ANDROID_CHROMIUM_WEBVIEW_C002_EXECUTION_PROOF_006_AUTHFR.zip > V005_ANDROID_CHROMIUM_WEBVIEW_C002_EXECUTION_PROOF_006_AUTHFR.zip.sha256
+          cat NEXUS-V005-C002-EXECUTION-PROOF-006-AUTHFR-debug.apk.sha256
+          cat V005_ANDROID_CHROMIUM_WEBVIEW_C002_EXECUTION_PROOF_006_AUTHFR.zip.sha256
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-V005-C002-EXECUTION-PROOF-006-AUTHFR-debug
+          path: NEXUS-V005-C002-EXECUTION-PROOF-006-AUTHFR-debug.apk
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-V005-C002-EXECUTION-PROOF-006-AUTHFR-source
+          path: V005_ANDROID_CHROMIUM_WEBVIEW_C002_EXECUTION_PROOF_006_AUTHFR.zip
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-V005-C002-EXECUTION-PROOF-006-AUTHFR-evidence
+          path: |
+            NEXUS-V005-C002-EXECUTION-PROOF-006-AUTHFR-debug.apk.sha256
+            V005_ANDROID_CHROMIUM_WEBVIEW_C002_EXECUTION_PROOF_006_AUTHFR.zip.sha256
+            AUTHFR_SOURCE_SHA256.txt
+            C002_VALIDATION.txt
+            AUTHFR_CORE.txt
+            AUTHFR_VALIDATION.txt
+          if-no-files-found: error
