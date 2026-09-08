@@ -1,0 +1,145 @@
+name: NEXUS V005 C002 CLAUDE RESULT DOM DIAGNOSTIC 015 - Build APK
+
+on:
+  push:
+    branches:
+      - v005-c002-claude-result-dom-diagnostic-015
+    paths:
+      - 'clauderesultdomdiag015/**'
+      - '.github/workflows/build-claude-resultdomdiag015.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate frozen C002
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '26b5b157b487eda3a0c92198066d39beb5e6eb1149a3c4a705b49274c636eed4  V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip' | sha256sum -c -
+          mkdir base
+          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d base
+          cd base/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+          chmod +x run_validation.sh run_core_tests.sh
+          ./run_validation.sh | tee /tmp/C002_VALIDATION.txt
+          grep -F 'RESULT pass=25 fail=0' /tmp/C002_VALIDATION.txt
+          grep -F 'STATIC_RESULT pass=10 fail=0' /tmp/C002_VALIDATION.txt
+
+      - name: Reconstruct and validate 014 reference
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 executionproof010_claude/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/reference010/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          python3 claudeauthstability012/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/reference012/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          chmod +x claudeauthstability012/run_validation.sh
+          claudeauthstability012/run_validation.sh \
+            "$GITHUB_WORKSPACE/reference012/V005_ANDROID_CHROMIUM_WEBVIEW_C002" \
+            "$GITHUB_WORKSPACE/reference010/V005_ANDROID_CHROMIUM_WEBVIEW_C002" | tee /tmp/CLAUDE012_VALIDATION.txt
+          grep -F 'CLAUDE_AUTH_STABILITY_012_STATIC_RESULT pass=17 fail=0' /tmp/CLAUDE012_VALIDATION.txt
+
+          python3 claudeauthwindow013/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/reference013/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          chmod +x claudeauthwindow013/run_validation.sh
+          claudeauthwindow013/run_validation.sh \
+            "$GITHUB_WORKSPACE/reference013/V005_ANDROID_CHROMIUM_WEBVIEW_C002" \
+            "$GITHUB_WORKSPACE/reference012/V005_ANDROID_CHROMIUM_WEBVIEW_C002" | tee /tmp/CLAUDE013_VALIDATION.txt
+          grep -F 'CLAUDE_AUTH_WINDOW_013_STATIC_RESULT pass=25 fail=0' /tmp/CLAUDE013_VALIDATION.txt
+
+          python3 claudeoauthhandoff014/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/reference014/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          chmod +x claudeoauthhandoff014/run_validation.sh
+          claudeoauthhandoff014/run_validation.sh \
+            "$GITHUB_WORKSPACE/reference014/V005_ANDROID_CHROMIUM_WEBVIEW_C002" \
+            "$GITHUB_WORKSPACE/reference013/V005_ANDROID_CHROMIUM_WEBVIEW_C002" | tee /tmp/CLAUDE014_VALIDATION.txt
+          grep -F 'CLAUDE_OAUTH_HANDOFF_014_STATIC_RESULT pass=33 fail=0' /tmp/CLAUDE014_VALIDATION.txt
+
+      - name: Derive Claude result DOM diagnostic 015
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 clauderesultdomdiag015/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Validate derivative
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          REF="$GITHUB_WORKSPACE/reference014/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          chmod +x "$ROOT/run_core_tests.sh" clauderesultdomdiag015/run_validation.sh
+          "$ROOT/run_core_tests.sh" | tee /tmp/CLAUDE015_CORE.txt
+          grep -F 'RESULT pass=25 fail=0' /tmp/CLAUDE015_CORE.txt
+          clauderesultdomdiag015/run_validation.sh "$ROOT" "$REF" | tee /tmp/CLAUDE015_VALIDATION.txt
+          grep -F 'CLAUDE_RESULT_DOM_DIAGNOSTIC_015_STATIC_RESULT pass=27 fail=0' /tmp/CLAUDE015_VALIDATION.txt
+
+      - name: Build APK
+        working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+        shell: bash
+        run: gradle :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Prepare artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002'
+          APK="$ROOT/app/build/outputs/apk/debug/app-debug.apk"
+          test -f "$APK"
+          cp "$APK" NEXUS-V005-C002-CLAUDE-RESULT-DOM-DIAGNOSTIC-015-debug.apk
+          sha256sum NEXUS-V005-C002-CLAUDE-RESULT-DOM-DIAGNOSTIC-015-debug.apk > NEXUS-V005-C002-CLAUDE-RESULT-DOM-DIAGNOSTIC-015-debug.apk.sha256
+          (cd work && zip -qr ../V005_ANDROID_CHROMIUM_WEBVIEW_C002_CLAUDE_RESULT_DOM_DIAGNOSTIC_015.zip V005_ANDROID_CHROMIUM_WEBVIEW_C002)
+          sha256sum V005_ANDROID_CHROMIUM_WEBVIEW_C002_CLAUDE_RESULT_DOM_DIAGNOSTIC_015.zip > V005_ANDROID_CHROMIUM_WEBVIEW_C002_CLAUDE_RESULT_DOM_DIAGNOSTIC_015.zip.sha256
+          cp /tmp/C002_VALIDATION.txt .
+          cp /tmp/CLAUDE012_VALIDATION.txt .
+          cp /tmp/CLAUDE013_VALIDATION.txt .
+          cp /tmp/CLAUDE014_VALIDATION.txt .
+          cp /tmp/CLAUDE015_CORE.txt .
+          cp /tmp/CLAUDE015_VALIDATION.txt .
+          sha256sum \
+            "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt" \
+            "$ROOT/app/src/main/assets/nexus/chatgpt_provider_c002.js" \
+            "$ROOT/app/src/main/assets/nexus/claude_provider_c002.js" \
+            "$ROOT/app/src/main/java/nexus/android/c002/web/OriginPolicy.kt" \
+            "$ROOT/app/src/main/java/nexus/android/c002/web/NexusWebBridge.kt" \
+            > CLAUDE015_SOURCE_SHA256.txt
+          cat NEXUS-V005-C002-CLAUDE-RESULT-DOM-DIAGNOSTIC-015-debug.apk.sha256
+          cat V005_ANDROID_CHROMIUM_WEBVIEW_C002_CLAUDE_RESULT_DOM_DIAGNOSTIC_015.zip.sha256
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-V005-C002-CLAUDE-RESULT-DOM-DIAGNOSTIC-015-debug
+          path: NEXUS-V005-C002-CLAUDE-RESULT-DOM-DIAGNOSTIC-015-debug.apk
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-V005-C002-CLAUDE-RESULT-DOM-DIAGNOSTIC-015-source
+          path: V005_ANDROID_CHROMIUM_WEBVIEW_C002_CLAUDE_RESULT_DOM_DIAGNOSTIC_015.zip
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-V005-C002-CLAUDE-RESULT-DOM-DIAGNOSTIC-015-evidence
+          path: |
+            NEXUS-V005-C002-CLAUDE-RESULT-DOM-DIAGNOSTIC-015-debug.apk.sha256
+            V005_ANDROID_CHROMIUM_WEBVIEW_C002_CLAUDE_RESULT_DOM_DIAGNOSTIC_015.zip.sha256
+            CLAUDE015_SOURCE_SHA256.txt
+            C002_VALIDATION.txt
+            CLAUDE012_VALIDATION.txt
+            CLAUDE013_VALIDATION.txt
+            CLAUDE014_VALIDATION.txt
+            CLAUDE015_CORE.txt
+            CLAUDE015_VALIDATION.txt
+          if-no-files-found: error
