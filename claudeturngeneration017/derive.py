@@ -6,6 +6,10 @@ repo = Path(sys.argv[1]).resolve()
 work = Path(sys.argv[2]).resolve()
 subprocess.run(['python3', str(repo/'claudeprompthardening016'/'derive.py'), str(repo), str(work)], check=True)
 
+# Branding is part of the derived Android source from 017 onward, not a one-off
+# workflow patch. Any later derivative that rebuilds through 017 inherits it.
+subprocess.run(['python3', str(repo/'branding'/'ensure_launcher.py'), str(work)], check=True)
+
 p=work/'app/build.gradle.kts'; g=p.read_text()
 for before,after in [
 ('applicationId = "nexus.android.c002.claudeprompthardening016"','applicationId = "nexus.android.c002.claudeturngeneration017"'),
