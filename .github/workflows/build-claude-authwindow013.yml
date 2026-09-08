@@ -19,28 +19,37 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Verify frozen C002
+      - name: Validate frozen C002
         shell: bash
         run: |
           set -euo pipefail
           echo '26b5b157b487eda3a0c92198066d39beb5e6eb1149a3c4a705b49274c636eed4  V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip' | sha256sum -c -
+          mkdir base
+          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d base
+          cd base/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+          chmod +x run_validation.sh run_core_tests.sh
+          ./run_validation.sh | tee /tmp/C002_VALIDATION.txt
+          grep -F 'RESULT pass=25 fail=0' /tmp/C002_VALIDATION.txt
+          grep -F 'STATIC_RESULT pass=10 fail=0' /tmp/C002_VALIDATION.txt
 
       - name: Reconstruct Claude010 and 012 references
         shell: bash
         run: |
           set -euo pipefail
-          mkdir ref010 ref012
-          python3 executionproof010_claude/derive.py "$PWD" "$PWD/ref010"
-          python3 claudeauthstability012/derive.py "$PWD" "$PWD/ref012"
+          python3 executionproof010_claude/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/reference010/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          python3 claudeauthstability012/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/reference012/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
           chmod +x claudeauthstability012/run_validation.sh
-          claudeauthstability012/run_validation.sh "$PWD/ref012" "$PWD/ref010"
+          claudeauthstability012/run_validation.sh \
+            "$GITHUB_WORKSPACE/reference012/V005_ANDROID_CHROMIUM_WEBVIEW_C002" \
+            "$GITHUB_WORKSPACE/reference010/V005_ANDROID_CHROMIUM_WEBVIEW_C002" \
+            | tee /tmp/CLAUDE012_VALIDATION.txt
+          grep -F 'CLAUDE_AUTH_STABILITY_012_STATIC_RESULT pass=17 fail=0' /tmp/CLAUDE012_VALIDATION.txt
 
       - name: Derive Claude auth window 013
         shell: bash
         run: |
           set -euo pipefail
-          mkdir work
-          python3 claudeauthwindow013/derive.py "$PWD" "$PWD/work"
+          python3 claudeauthwindow013/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
 
       - uses: actions/setup-java@v5
         with:
@@ -51,48 +60,48 @@ jobs:
         with:
           gradle-version: '9.6.0'
 
-      - name: Validate frozen C002 derivative
-        working-directory: work
+      - name: Validate derivative
         shell: bash
         run: |
           set -euo pipefail
-          chmod +x run_core_tests.sh run_validation.sh
-          ./run_validation.sh
-
-      - name: Validate auth window 013
-        shell: bash
-        run: |
-          set -euo pipefail
-          chmod +x claudeauthwindow013/run_validation.sh
-          claudeauthwindow013/run_validation.sh "$PWD/work" "$PWD/ref012"
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          REF="$GITHUB_WORKSPACE/reference012/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          chmod +x "$ROOT/run_core_tests.sh" "$ROOT/run_validation.sh" claudeauthwindow013/run_validation.sh
+          "$ROOT/run_validation.sh" | tee /tmp/C002_013_VALIDATION.txt
+          grep -F 'RESULT pass=25 fail=0' /tmp/C002_013_VALIDATION.txt
+          grep -F 'STATIC_RESULT pass=10 fail=0' /tmp/C002_013_VALIDATION.txt
+          claudeauthwindow013/run_validation.sh "$ROOT" "$REF" | tee /tmp/CLAUDE013_VALIDATION.txt
+          grep -F 'CLAUDE_AUTH_WINDOW_013_STATIC_RESULT pass=25 fail=0' /tmp/CLAUDE013_VALIDATION.txt
 
       - name: Build APK
-        working-directory: work
+        working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
         shell: bash
-        run: |
-          set -euo pipefail
-          gradle :app:assembleDebug --stacktrace --no-daemon
+        run: gradle :app:assembleDebug --stacktrace --no-daemon
 
       - name: Prepare artifacts
         shell: bash
         run: |
           set -euo pipefail
-          APK='work/app/build/outputs/apk/debug/app-debug.apk'
+          ROOT='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002'
+          APK="$ROOT/app/build/outputs/apk/debug/app-debug.apk"
           test -f "$APK"
           cp "$APK" NEXUS-V005-C002-CLAUDE-AUTH-WINDOW-013-debug.apk
           sha256sum NEXUS-V005-C002-CLAUDE-AUTH-WINDOW-013-debug.apk > NEXUS-V005-C002-CLAUDE-AUTH-WINDOW-013-debug.apk.sha256
-          (cd work && zip -qr ../V005_ANDROID_CHROMIUM_WEBVIEW_C002_CLAUDE_AUTH_WINDOW_013.zip .)
+          (cd work && zip -qr ../V005_ANDROID_CHROMIUM_WEBVIEW_C002_CLAUDE_AUTH_WINDOW_013.zip V005_ANDROID_CHROMIUM_WEBVIEW_C002)
           sha256sum V005_ANDROID_CHROMIUM_WEBVIEW_C002_CLAUDE_AUTH_WINDOW_013.zip > V005_ANDROID_CHROMIUM_WEBVIEW_C002_CLAUDE_AUTH_WINDOW_013.zip.sha256
-          {
-            echo 'V005-C002-CLAUDE-AUTH-WINDOW-HARDENING-013'
-            echo "GITHUB_SHA=$GITHUB_SHA"
-            echo '012 reference validation:'
-            claudeauthstability012/run_validation.sh "$PWD/ref012" "$PWD/ref010"
-            echo '013 validation:'
-            claudeauthwindow013/run_validation.sh "$PWD/work" "$PWD/ref012"
-            cat NEXUS-V005-C002-CLAUDE-AUTH-WINDOW-013-debug.apk.sha256
-            cat V005_ANDROID_CHROMIUM_WEBVIEW_C002_CLAUDE_AUTH_WINDOW_013.zip.sha256
-          } > CLAUDE_AUTH_WINDOW_013_EVIDENCE.txt
+          cp /tmp/C002_VALIDATION.txt .
+          cp /tmp/CLAUDE012_VALIDATION.txt .
+          cp /tmp/C002_013_VALIDATION.txt .
+          cp /tmp/CLAUDE013_VALIDATION.txt .
+          sha256sum \
+            "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt" \
+            "$ROOT/app/src/main/assets/nexus/chatgpt_provider_c002.js" \
+            "$ROOT/app/src/main/assets/nexus/claude_provider_c002.js" \
+            "$ROOT/app/src/main/java/nexus/android/c002/web/OriginPolicy.kt" \
+            "$ROOT/app/src/main/java/nexus/android/c002/web/NexusWebBridge.kt" \
+            > CLAUDE013_SOURCE_SHA256.txt
+          cat NEXUS-V005-C002-CLAUDE-AUTH-WINDOW-013-debug.apk.sha256
+          cat V005_ANDROID_CHROMIUM_WEBVIEW_C002_CLAUDE_AUTH_WINDOW_013.zip.sha256
 
       - uses: actions/upload-artifact@v7
         with:
@@ -110,7 +119,11 @@ jobs:
         with:
           name: NEXUS-V005-C002-CLAUDE-AUTH-WINDOW-013-evidence
           path: |
-            CLAUDE_AUTH_WINDOW_013_EVIDENCE.txt
             NEXUS-V005-C002-CLAUDE-AUTH-WINDOW-013-debug.apk.sha256
             V005_ANDROID_CHROMIUM_WEBVIEW_C002_CLAUDE_AUTH_WINDOW_013.zip.sha256
+            CLAUDE013_SOURCE_SHA256.txt
+            C002_VALIDATION.txt
+            CLAUDE012_VALIDATION.txt
+            C002_013_VALIDATION.txt
+            CLAUDE013_VALIDATION.txt
           if-no-files-found: error
