@@ -1,0 +1,116 @@
+name: NEXUS V005 C002 CLAUDE AUTH WINDOW 013 - Build APK
+
+on:
+  push:
+    branches:
+      - v005-c002-claude-auth-window-013
+    paths:
+      - 'claudeauthwindow013/**'
+      - '.github/workflows/build-claude-authwindow013.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Verify frozen C002
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '26b5b157b487eda3a0c92198066d39beb5e6eb1149a3c4a705b49274c636eed4  V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip' | sha256sum -c -
+
+      - name: Reconstruct Claude010 and 012 references
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir ref010 ref012
+          python3 executionproof010_claude/derive.py "$PWD" "$PWD/ref010"
+          python3 claudeauthstability012/derive.py "$PWD" "$PWD/ref012"
+          chmod +x claudeauthstability012/run_validation.sh
+          claudeauthstability012/run_validation.sh "$PWD/ref012" "$PWD/ref010"
+
+      - name: Derive Claude auth window 013
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir work
+          python3 claudeauthwindow013/derive.py "$PWD" "$PWD/work"
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Validate frozen C002 derivative
+        working-directory: work
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x run_core_tests.sh run_validation.sh
+          ./run_validation.sh
+
+      - name: Validate auth window 013
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x claudeauthwindow013/run_validation.sh
+          claudeauthwindow013/run_validation.sh "$PWD/work" "$PWD/ref012"
+
+      - name: Build APK
+        working-directory: work
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Prepare artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK='work/app/build/outputs/apk/debug/app-debug.apk'
+          test -f "$APK"
+          cp "$APK" NEXUS-V005-C002-CLAUDE-AUTH-WINDOW-013-debug.apk
+          sha256sum NEXUS-V005-C002-CLAUDE-AUTH-WINDOW-013-debug.apk > NEXUS-V005-C002-CLAUDE-AUTH-WINDOW-013-debug.apk.sha256
+          (cd work && zip -qr ../V005_ANDROID_CHROMIUM_WEBVIEW_C002_CLAUDE_AUTH_WINDOW_013.zip .)
+          sha256sum V005_ANDROID_CHROMIUM_WEBVIEW_C002_CLAUDE_AUTH_WINDOW_013.zip > V005_ANDROID_CHROMIUM_WEBVIEW_C002_CLAUDE_AUTH_WINDOW_013.zip.sha256
+          {
+            echo 'V005-C002-CLAUDE-AUTH-WINDOW-HARDENING-013'
+            echo "GITHUB_SHA=$GITHUB_SHA"
+            echo '012 reference validation:'
+            claudeauthstability012/run_validation.sh "$PWD/ref012" "$PWD/ref010"
+            echo '013 validation:'
+            claudeauthwindow013/run_validation.sh "$PWD/work" "$PWD/ref012"
+            cat NEXUS-V005-C002-CLAUDE-AUTH-WINDOW-013-debug.apk.sha256
+            cat V005_ANDROID_CHROMIUM_WEBVIEW_C002_CLAUDE_AUTH_WINDOW_013.zip.sha256
+          } > CLAUDE_AUTH_WINDOW_013_EVIDENCE.txt
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-V005-C002-CLAUDE-AUTH-WINDOW-013-debug
+          path: NEXUS-V005-C002-CLAUDE-AUTH-WINDOW-013-debug.apk
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-V005-C002-CLAUDE-AUTH-WINDOW-013-source
+          path: V005_ANDROID_CHROMIUM_WEBVIEW_C002_CLAUDE_AUTH_WINDOW_013.zip
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-V005-C002-CLAUDE-AUTH-WINDOW-013-evidence
+          path: |
+            CLAUDE_AUTH_WINDOW_013_EVIDENCE.txt
+            NEXUS-V005-C002-CLAUDE-AUTH-WINDOW-013-debug.apk.sha256
+            V005_ANDROID_CHROMIUM_WEBVIEW_C002_CLAUDE_AUTH_WINDOW_013.zip.sha256
+          if-no-files-found: error
