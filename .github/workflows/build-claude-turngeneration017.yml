@@ -6,6 +6,7 @@ on:
       - v005-c002-claude-turn-generation-diagnostic-017
     paths:
       - 'claudeturngeneration017/**'
+      - 'branding/**'
       - '.github/workflows/build-claude-turngeneration017.yml'
   workflow_dispatch:
 
@@ -72,10 +73,34 @@ jobs:
           grep -F 'CLAUDE_TURN_GENERATION_DIAGNOSTIC_017_STATIC_RESULT' /tmp/CLAUDE017_VALIDATION.txt
           grep -F 'fail=0' /tmp/CLAUDE017_VALIDATION.txt
 
+      - name: Verify inherited NEXUS launcher source
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          grep -F 'android:icon="@mipmap/ic_launcher"' "$ROOT/app/src/main/AndroidManifest.xml"
+          grep -F 'android:roundIcon="@mipmap/ic_launcher_round"' "$ROOT/app/src/main/AndroidManifest.xml"
+          test -f "$ROOT/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml"
+          test -f "$ROOT/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml"
+          test -f "$ROOT/app/src/main/res/drawable/nexus_launcher_foreground.xml"
+
       - name: Build APK
         working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
         shell: bash
         run: gradle :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Verify NEXUS launcher in built APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          APK="$ROOT/app/build/outputs/apk/debug/app-debug.apk"
+          AAPT="$ANDROID_HOME/build-tools/36.0.0/aapt"
+          test -f "$APK"
+          "$AAPT" dump badging "$APK" | tee /tmp/CLAUDE017_BADGING.txt
+          grep -E "application:.*icon='res/mipmap" /tmp/CLAUDE017_BADGING.txt
+          unzip -l "$APK" | grep -E 'res/mipmap-anydpi-v26/ic_launcher(_round)?\.xml|res/drawable/nexus_launcher_foreground\.xml' | tee /tmp/CLAUDE017_ICON_FILES.txt
+          test "$(wc -l < /tmp/CLAUDE017_ICON_FILES.txt)" -ge 3
 
       - name: Prepare artifacts
         shell: bash
@@ -92,6 +117,8 @@ jobs:
           cp /tmp/CLAUDE016_VALIDATION.txt .
           cp /tmp/CLAUDE017_CORE.txt .
           cp /tmp/CLAUDE017_VALIDATION.txt .
+          cp /tmp/CLAUDE017_BADGING.txt .
+          cp /tmp/CLAUDE017_ICON_FILES.txt .
           sha256sum \
             "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt" \
             "$ROOT/app/src/main/assets/nexus/chatgpt_provider_c002.js" \
@@ -123,4 +150,6 @@ jobs:
             CLAUDE016_VALIDATION.txt
             CLAUDE017_CORE.txt
             CLAUDE017_VALIDATION.txt
+            CLAUDE017_BADGING.txt
+            CLAUDE017_ICON_FILES.txt
           if-no-files-found: error
