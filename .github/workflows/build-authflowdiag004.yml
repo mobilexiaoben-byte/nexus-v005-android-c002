@@ -1,0 +1,234 @@
+name: NEXUS V005 C002 AUTHFLOWDIAG004 - Build APK
+
+on:
+  push:
+    branches:
+      - v005-authflowdiag004
+    paths:
+      - '.github/workflows/build-authflowdiag004.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build AUTHFLOWDIAG004 debug APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout C002 diagnostic branch
+        uses: actions/checkout@v6
+
+      - name: Verify frozen C002 and AUTHFLOWDIAG003 inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '26b5b157b487eda3a0c92198066d39beb5e6eb1149a3c4a705b49274c636eed4  V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip' | sha256sum -c -
+          cd authflowdiag003
+          cat > /tmp/authflowdiag003.inputs.sha256 <<'EOF'
+          12ac8f5167f2af12bd0abf5475f38f4ca452af2a34aa9948d20d045206cdbd13  app/build.gradle.kts
+          81374655fc846f954f42e212dace84866e7cedcfe0bebb0381be85bfe466f33b  app/src/main/AndroidManifest.xml
+          6a4d2148f6076555ebd8cf430058b58097b7f71b7d2cbcb83be6646eee4c1f5a  app/src/main/res/layout/activity_main.xml
+          14b154a0786f97420ecdd5063ae7fdf1dccfdf6fbf5151692abc1c284ebf50fb  app/src/main/java/nexus/android/c002/MainActivity.kt
+          0c8e0439afecba4a8235075e5681d79409f43ac30694f770c590cc765f645019  AUTHFLOWDIAG003_BASELINE_SHA256.txt
+          605452a362970cfac8cc8356b4534a6715368128d61e7f41a31abe37be9819dd  run_authflowdiag003_validation.sh
+          EOF
+          sha256sum -c /tmp/authflowdiag003.inputs.sha256
+
+      - name: Derive AUTHFLOWDIAG004 from C002 CURRENT plus DIAG003 instrumentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir work
+          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d work
+          ROOT='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002'
+          test -f "$ROOT/settings.gradle.kts"
+
+          cp "$ROOT/app/src/main/java/nexus/android/c002/web/OriginPolicy.kt" /tmp/OriginPolicy.C002.kt
+          cp authflowdiag003/app/build.gradle.kts "$ROOT/app/build.gradle.kts"
+          cp authflowdiag003/app/src/main/AndroidManifest.xml "$ROOT/app/src/main/AndroidManifest.xml"
+          cp authflowdiag003/app/src/main/res/layout/activity_main.xml "$ROOT/app/src/main/res/layout/activity_main.xml"
+          cp authflowdiag003/app/src/main/java/nexus/android/c002/MainActivity.kt "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt"
+
+          python3 - "$ROOT" <<'PY'
+          from pathlib import Path
+          import sys
+          root = Path(sys.argv[1])
+
+          p = root / 'app/build.gradle.kts'
+          s = p.read_text()
+          s = s.replace('nexus.android.c002.authflowdiag003', 'nexus.android.c002.authflowdiag004')
+          s = s.replace('versionCode = 4', 'versionCode = 5')
+          s = s.replace('0.0.4-c002-authflowdiag003', '0.0.5-c002-authflowdiag004')
+          p.write_text(s)
+
+          p = root / 'app/src/main/AndroidManifest.xml'
+          p.write_text(p.read_text().replace('NEXUS C002 AUTHFLOWDIAG003', 'NEXUS C002 AUTHFLOWDIAG004'))
+
+          p = root / 'app/src/main/res/layout/activity_main.xml'
+          p.write_text(p.read_text().replace('AUTHFLOWDIAG003 — initializing', 'AUTHFLOWDIAG004 — initializing'))
+
+          p = root / 'app/src/main/java/nexus/android/c002/MainActivity.kt'
+          s = p.read_text()
+          s = s.replace('V005-C002-AUTHFLOWDIAG003-DEVICE-001', 'V005-C002-AUTHFLOWDIAG004-DEVICE-001')
+          s = s.replace('nexus_provider_profile_c002_authflowdiag003', 'nexus_provider_profile_c002_authflowdiag004')
+          s = s.replace('AUTHFLOWDIAG003 ACTIVE', 'AUTHFLOWDIAG004 ACTIVE')
+          p.write_text(s)
+
+          p = root / 'app/src/main/java/nexus/android/c002/web/OriginPolicy.kt'
+          s = p.read_text()
+          needle = '            host == "anthropic.com" || host.endsWith(".anthropic.com")\n'
+          replacement = '            host == "anthropic.com" || host.endsWith(".anthropic.com") ||\n            host == "accounts.google.com"\n'
+          if s.count(needle) != 1:
+              raise SystemExit('OriginPolicy injection point mismatch')
+          p.write_text(s.replace(needle, replacement))
+          PY
+
+          cat > "$ROOT/AUTHFLOWDIAG004_BASELINE_SHA256.txt" <<'EOF'
+          a842eb5d15d23b0ace09674585cefbfba2a753c155eeb5b0c0df6aaf9324275a  app/src/main/java/nexus/android/c002/web/NexusWebBridge.kt
+          4a183b76dfb56eb9d2f51a553e69ad138a9dea1d251c221c5b6f09e6dbe618ea  app/src/main/assets/nexus/chatgpt_provider_c002.js
+          f1dc78cdbadcc252a529c2db86b15ac42a92f0f2c132181cd1072bc24b131366  app/src/main/assets/nexus/claude_provider_c002.js
+          EOF
+
+          cat > "$ROOT/run_authflowdiag004_validation.sh" <<'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          ROOT="$(cd "$(dirname "$0")" && pwd)"
+          MAIN="$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt"
+          POLICY="$ROOT/app/src/main/java/nexus/android/c002/web/OriginPolicy.kt"
+          LAYOUT="$ROOT/app/src/main/res/layout/activity_main.xml"
+          MANIFEST="$ROOT/app/src/main/AndroidManifest.xml"
+          PASS=0
+          FAIL=0
+          check() { local id="$1"; shift; if "$@"; then echo "PASS $id"; PASS=$((PASS+1)); else echo "FAIL $id"; FAIL=$((FAIL+1)); fi; }
+          check_text() { grep -Fq "$2" "$1"; }
+
+          check D01_marker check_text "$MAIN" 'V005-C002-AUTHFLOWDIAG004-DEVICE-001'
+          check D02_page_started check_text "$MAIN" 'override fun onPageStarted'
+          check D03_page_finished check_text "$MAIN" 'override fun onPageFinished'
+          check D04_override_loading check_text "$MAIN" 'override fun shouldOverrideUrlLoading'
+          check D05_received_error check_text "$MAIN" 'override fun onReceivedError'
+          check D06_http_error check_text "$MAIN" 'override fun onReceivedHttpError'
+          check D07_main_frame check_text "$MAIN" 'request.isForMainFrame'
+          check D08_new_window check_text "$MAIN" 'override fun onCreateWindow'
+          check D09_popup_fail_closed check_text "$MAIN" 'AUTHFLOW_NEW_WINDOW_REQUESTED'
+          check D10_sanitized_url check_text "$MAIN" 'sanitizeUrl(rawUrl)'
+          check D11_no_query_fragment_logging bash -c "! grep -Eq 'uri\.(query|encodedQuery|fragment|encodedFragment)|request\.url\.query|request\.url\.fragment' '$MAIN'"
+          check D12_no_raw_loading_status bash -c "! grep -Fq 'loading \$url' '$MAIN'"
+          check D13_bridge_unchanged bash -c "cd '$ROOT' && echo 'a842eb5d15d23b0ace09674585cefbfba2a753c155eeb5b0c0df6aaf9324275a  app/src/main/java/nexus/android/c002/web/NexusWebBridge.kt' | sha256sum -c - >/dev/null"
+          check D14_chatgpt_adapter_unchanged bash -c "cd '$ROOT' && echo '4a183b76dfb56eb9d2f51a553e69ad138a9dea1d251c221c5b6f09e6dbe618ea  app/src/main/assets/nexus/chatgpt_provider_c002.js' | sha256sum -c - >/dev/null"
+          check D15_claude_adapter_unchanged bash -c "cd '$ROOT' && echo 'f1dc78cdbadcc252a529c2db86b15ac42a92f0f2c132181cd1072bc24b131366  app/src/main/assets/nexus/claude_provider_c002.js' | sha256sum -c - >/dev/null"
+          check D16_no_provider_job check_text "$MAIN" 'Deliberately no provider job dispatch here.'
+          check D17_side_by_side_package check_text "$ROOT/app/build.gradle.kts" 'applicationId = "nexus.android.c002.authflowdiag004"'
+          check D18_version_code check_text "$ROOT/app/build.gradle.kts" 'versionCode = 5'
+          check D19_debugging_disabled check_text "$MAIN" 'WebView.setWebContentsDebuggingEnabled(false)'
+          check D20_baselines_unchanged bash -c "cd '$ROOT' && sha256sum -c AUTHFLOWDIAG004_BASELINE_SHA256.txt >/dev/null"
+          check D21_consecutive_dedup check_text "$MAIN" 'previous?.fingerprint == fingerprint'
+          check D22_repeat_counter check_text "$MAIN" 'previous.repeatCount += 1'
+          check D23_auth_transition_only check_text "$MAIN" 'val authChanged = authState != lastAuthState'
+          check D24_compact_two_lines check_text "$MAIN" 'const val COMPACT_STATUS_LINES = 2'
+          check D25_expanded_bounded check_text "$MAIN" 'const val EXPANDED_STATUS_LINES = 8'
+          check D26_layout_bounded check_text "$LAYOUT" 'android:maxLines="2"'
+          check D27_layout_ellipsize check_text "$LAYOUT" 'android:ellipsize="end"'
+          check D28_tap_expand check_text "$MAIN" 'diagnosticExpanded = !diagnosticExpanded'
+          check D29_webview_weight check_text "$LAYOUT" 'android:layout_weight="1"'
+          check D30_distinct_label check_text "$MANIFEST" 'android:label="NEXUS C002 AUTHFLOWDIAG004"'
+          check D31_profile_isolated check_text "$MAIN" 'nexus_provider_profile_c002_authflowdiag004'
+          check D32_google_exact_host check_text "$POLICY" 'host == "accounts.google.com"'
+          check D33_no_google_wildcard bash -c "! grep -Fq 'endsWith(\".google.com\")' '$POLICY'"
+          check D34_no_google_family_root bash -c "! grep -Eq 'host == \"google\.com\"|host\.endsWith\(\"\.googleusercontent\.com\"\)' '$POLICY'"
+          check D35_bridge_origins_no_google bash -c "python3 - '$POLICY' <<'PY'
+          import sys
+          s=open(sys.argv[1]).read()
+          bridge=s.split('fun isBridgeOriginAllowed',1)[0]
+          raise SystemExit(1 if 'google' in bridge else 0)
+          PY"
+          check D36_https_only check_text "$POLICY" 'if (!uri.scheme.equals("https", ignoreCase = true)) return false'
+          check D37_existing_provider_hosts_preserved bash -c "grep -Fq 'host == \"chatgpt.com\"' '$POLICY' && grep -Fq 'host == \"openai.com\"' '$POLICY' && grep -Fq 'host == \"claude.ai\"' '$POLICY' && grep -Fq 'host == \"anthropic.com\"' '$POLICY'"
+          check D38_google_evidence_scope python3 -c 'import sys; s=open(sys.argv[1]).read(); raise SystemExit(0 if s.count("accounts.google.com")==1 else 1)' "$POLICY"
+
+          printf 'AUTHFLOWDIAG004_STATIC_RESULT pass=%d fail=%d\n' "$PASS" "$FAIL"
+          test "$FAIL" -eq 0
+          EOF
+          chmod +x "$ROOT/run_authflowdiag004_validation.sh"
+
+          diff -u /tmp/OriginPolicy.C002.kt "$ROOT/app/src/main/java/nexus/android/c002/web/OriginPolicy.kt" | tee /tmp/AUTHFLOWDIAG004_POLICY_DIFF.txt || test ${PIPESTATUS[0]} -eq 1
+          grep -F '+            host == "accounts.google.com"' /tmp/AUTHFLOWDIAG004_POLICY_DIFF.txt
+          test "$(grep -c '^+' /tmp/AUTHFLOWDIAG004_POLICY_DIFF.txt)" -eq 2
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 9.6.0
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Verify Android build environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${ANDROID_HOME:-}"
+          test -d "$ANDROID_HOME/platforms/android-36"
+          test -d "$ANDROID_HOME/build-tools/36.0.0"
+          java -version
+          gradle --version
+
+      - name: Run inherited C002 validation
+        working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x run_core_tests.sh run_validation.sh
+          ./run_validation.sh
+
+      - name: Run AUTHFLOWDIAG004 validation
+        working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./run_authflowdiag004_validation.sh
+
+      - name: Build diagnostic APK
+        working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Prepare diagnostic artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/build/outputs/apk/debug/app-debug.apk'
+          test -f "$APK"
+          cp "$APK" NEXUS-V005-C002-AUTHFLOWDIAG004-debug.apk
+          sha256sum NEXUS-V005-C002-AUTHFLOWDIAG004-debug.apk > NEXUS-V005-C002-AUTHFLOWDIAG004-debug.apk.sha256
+          cp /tmp/AUTHFLOWDIAG004_POLICY_DIFF.txt AUTHFLOWDIAG004_POLICY_DIFF.txt
+          cat NEXUS-V005-C002-AUTHFLOWDIAG004-debug.apk.sha256
+
+      - name: Upload diagnostic APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-V005-C002-AUTHFLOWDIAG004-debug
+          path: NEXUS-V005-C002-AUTHFLOWDIAG004-debug.apk
+          if-no-files-found: error
+
+      - name: Upload SHA-256 record
+        uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-V005-C002-AUTHFLOWDIAG004-debug-sha256
+          path: NEXUS-V005-C002-AUTHFLOWDIAG004-debug.apk.sha256
+          if-no-files-found: error
+
+      - name: Upload exact policy diff
+        uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-V005-C002-AUTHFLOWDIAG004-policy-diff
+          path: AUTHFLOWDIAG004_POLICY_DIFF.txt
+          if-no-files-found: error
