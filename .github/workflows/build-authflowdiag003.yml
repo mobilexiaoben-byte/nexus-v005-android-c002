@@ -1,0 +1,122 @@
+name: NEXUS V005 C002 AUTHFLOWDIAG003 - Build APK
+
+on:
+  push:
+    branches:
+      - v005-authflowdiag003
+    paths:
+      - 'authflowdiag003/**'
+      - '.github/workflows/build-authflowdiag003.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build AUTHFLOWDIAG003 debug APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout C002 diagnostic branch
+        uses: actions/checkout@v6
+
+      - name: Verify frozen C002 and diagnostic inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '26b5b157b487eda3a0c92198066d39beb5e6eb1149a3c4a705b49274c636eed4  V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip' | sha256sum -c -
+          cd authflowdiag003
+          cat > /tmp/authflowdiag003.inputs.sha256 <<'EOF'
+          12ac8f5167f2af12bd0abf5475f38f4ca452af2a34aa9948d20d045206cdbd13  app/build.gradle.kts
+          81374655fc846f954f42e212dace84866e7cedcfe0bebb0381be85bfe466f33b  app/src/main/AndroidManifest.xml
+          6a4d2148f6076555ebd8cf430058b58097b7f71b7d2cbcb83be6646eee4c1f5a  app/src/main/res/layout/activity_main.xml
+          14b154a0786f97420ecdd5063ae7fdf1dccfdf6fbf5151692abc1c284ebf50fb  app/src/main/java/nexus/android/c002/MainActivity.kt
+          0c8e0439afecba4a8235075e5681d79409f43ac30694f770c590cc765f645019  AUTHFLOWDIAG003_BASELINE_SHA256.txt
+          605452a362970cfac8cc8356b4534a6715368128d61e7f41a31abe37be9819dd  run_authflowdiag003_validation.sh
+          EOF
+          sha256sum -c /tmp/authflowdiag003.inputs.sha256
+
+      - name: Derive AUTHFLOWDIAG003 from C002 CURRENT
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir work
+          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d work
+          ROOT='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002'
+          test -f "$ROOT/settings.gradle.kts"
+          cp authflowdiag003/app/build.gradle.kts "$ROOT/app/build.gradle.kts"
+          cp authflowdiag003/app/src/main/AndroidManifest.xml "$ROOT/app/src/main/AndroidManifest.xml"
+          cp authflowdiag003/app/src/main/res/layout/activity_main.xml "$ROOT/app/src/main/res/layout/activity_main.xml"
+          cp authflowdiag003/app/src/main/java/nexus/android/c002/MainActivity.kt "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt"
+          cp authflowdiag003/AUTHFLOWDIAG003_BASELINE_SHA256.txt "$ROOT/AUTHFLOWDIAG003_BASELINE_SHA256.txt"
+          cp authflowdiag003/run_authflowdiag003_validation.sh "$ROOT/run_authflowdiag003_validation.sh"
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 9.6.0
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Verify Android build environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${ANDROID_HOME:-}"
+          test -d "$ANDROID_HOME/platforms/android-36"
+          test -d "$ANDROID_HOME/build-tools/36.0.0"
+          java -version
+          gradle --version
+
+      - name: Run inherited C002 validation
+        working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x run_core_tests.sh run_validation.sh
+          ./run_validation.sh
+
+      - name: Run AUTHFLOWDIAG003 validation
+        working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x run_authflowdiag003_validation.sh
+          ./run_authflowdiag003_validation.sh
+
+      - name: Build diagnostic APK
+        working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Prepare diagnostic artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/build/outputs/apk/debug/app-debug.apk'
+          test -f "$APK"
+          cp "$APK" NEXUS-V005-C002-AUTHFLOWDIAG003-debug.apk
+          sha256sum NEXUS-V005-C002-AUTHFLOWDIAG003-debug.apk > NEXUS-V005-C002-AUTHFLOWDIAG003-debug.apk.sha256
+          cat NEXUS-V005-C002-AUTHFLOWDIAG003-debug.apk.sha256
+
+      - name: Upload diagnostic APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-V005-C002-AUTHFLOWDIAG003-debug
+          path: NEXUS-V005-C002-AUTHFLOWDIAG003-debug.apk
+          if-no-files-found: error
+
+      - name: Upload SHA-256 record
+        uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-V005-C002-AUTHFLOWDIAG003-debug-sha256
+          path: NEXUS-V005-C002-AUTHFLOWDIAG003-debug.apk.sha256
+          if-no-files-found: error
