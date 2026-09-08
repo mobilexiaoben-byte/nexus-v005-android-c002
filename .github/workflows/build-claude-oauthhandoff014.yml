@@ -77,7 +77,7 @@ jobs:
           "$ROOT/run_core_tests.sh" | tee /tmp/CLAUDE014_CORE.txt
           grep -F 'RESULT pass=25 fail=0' /tmp/CLAUDE014_CORE.txt
           claudeoauthhandoff014/run_validation.sh "$ROOT" "$REF" | tee /tmp/CLAUDE014_VALIDATION.txt
-          grep -F 'CLAUDE_OAUTH_HANDOFF_014_STATIC_RESULT pass=32 fail=0' /tmp/CLAUDE014_VALIDATION.txt
+          grep -F 'CLAUDE_OAUTH_HANDOFF_014_STATIC_RESULT pass=33 fail=0' /tmp/CLAUDE014_VALIDATION.txt
 
       - name: Build APK
         working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
