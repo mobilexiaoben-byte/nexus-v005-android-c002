@@ -42,33 +42,26 @@ jobs:
           from pathlib import Path
           import sys
           r=Path(sys.argv[1])
-
           p=r/'app/build.gradle.kts'
           s=p.read_text()
           s=s.replace('applicationId = "nexus.android.c002"','applicationId = "nexus.android.c002.executionproof006.authfr"')
           s=s.replace('versionCode = 2','versionCode = 9')
           s=s.replace('versionName = "0.0.2-c002"','versionName = "0.0.9-c002-executionproof006-authfr"')
           p.write_text(s)
-
           p=r/'app/src/main/AndroidManifest.xml'
-          s=p.read_text()
-          old='android:label="NEXUS Android C002"'
+          s=p.read_text(); old='android:label="NEXUS Android C002"'
           if s.count(old)!=1: raise SystemExit('manifest label baseline mismatch')
           p.write_text(s.replace(old,'android:label="NEXUS C002 EXECUTION PROOF 006 AUTHFR"'))
-
           p=r/'app/src/main/res/layout/activity_main.xml'
           s=p.read_text()
           needle='android:padding="12dp"\n        android:text="NEXUS C002 — initializing"'
           repl='android:padding="8dp"\n        android:maxLines="2"\n        android:ellipsize="end"\n        android:clickable="true"\n        android:focusable="true"\n        android:text="EXECUTION PROOF 006 AUTHFR — initializing"'
           if s.count(needle)!=1: raise SystemExit('layout baseline mismatch')
           p.write_text(s.replace(needle,repl))
-
           p=r/'app/src/main/java/nexus/android/c002/MainActivity.kt'
-          s=p.read_text()
-          old='nexus_provider_profile_c002_executionproof006'
+          s=p.read_text(); old='nexus_provider_profile_c002_executionproof006'
           if s.count(old)!=1: raise SystemExit('profile source mismatch')
           p.write_text(s.replace(old,'nexus_provider_profile_c002_executionproof006_authfr'))
-
           p=r/'app/src/main/java/nexus/android/c002/web/OriginPolicy.kt'
           s=p.read_text()
           needle='            host == "anthropic.com" || host.endsWith(".anthropic.com")\n'
@@ -119,19 +112,11 @@ jobs:
           check A10_no_google_fr_wildcard bash -c "! grep -Fq 'endsWith(\".google.fr\")' '$POLICY'"
           check A11_no_plain_google_fr bash -c "! grep -Fq 'host == \"google.fr\"' '$POLICY'"
           check A12_https_only contains "$POLICY" 'if (!uri.scheme.equals("https", ignoreCase = true)) return false'
-          check A13_bridge_origins_clean bash -c "python3 - '$POLICY' <<'PY'
-import sys
-s=open(sys.argv[1]).read(); bridge=s.split('fun isBridgeOriginAllowed',1)[0]
-assert 'google' not in bridge and 'youtube' not in bridge
-PY"
+          check A13_bridge_origins_clean python3 -c "s=open('$POLICY').read(); bridge=s.split('fun isBridgeOriginAllowed',1)[0]; assert 'google' not in bridge and 'youtube' not in bridge"
           check A14_bridge_unchanged bash -c "echo 'a842eb5d15d23b0ace09674585cefbfba2a753c155eeb5b0c0df6aaf9324275a  app/src/main/java/nexus/android/c002/web/NexusWebBridge.kt' | sha256sum -c - >/dev/null"
           check A15_claude_unchanged bash -c "echo 'f1dc78cdbadcc252a529c2db86b15ac42a92f0f2c132181cd1072bc24b131366  app/src/main/assets/nexus/claude_provider_c002.js' | sha256sum -c - >/dev/null"
           check A16_chat_adapter_executionproof_unchanged bash -c "echo '128cc17329ca70547085a774ff4487d0aa62417944945e8dc35763675010fa79  app/src/main/assets/nexus/chatgpt_provider_c002.js' | sha256sum -c - >/dev/null"
-          check A17_describe_before_execute python3 - "$MAIN" <<'PY'
-import sys
-s=open(sys.argv[1]).read()
-assert s.index('describePassed = true') < s.index('startExecutionProof(origin)') < s.index('.put("type", "EXECUTE_JOB")')
-PY
+          check A17_describe_before_execute python3 -c "s=open('$MAIN').read(); assert s.index('describePassed = true') < s.index('startExecutionProof(origin)') < s.index('.put(\"type\", \"EXECUTE_JOB\")')"
           check A18_single_provider contains "$MAIN" 'provider = SelectedProvider.CHATGPT'
           check A19_external_false contains "$MAIN" '.put("external_research", false)'
           check A20_canonical_false contains "$MAIN" '.put("canonical_write", false)'
