@@ -156,7 +156,7 @@ jobs:
 
           diff -u /tmp/OriginPolicy.C002.kt "$ROOT/app/src/main/java/nexus/android/c002/web/OriginPolicy.kt" | tee /tmp/AUTHFLOWDIAG004_POLICY_DIFF.txt || test ${PIPESTATUS[0]} -eq 1
           grep -F '+            host == "accounts.google.com"' /tmp/AUTHFLOWDIAG004_POLICY_DIFF.txt
-          test "$(grep -c '^+' /tmp/AUTHFLOWDIAG004_POLICY_DIFF.txt)" -eq 2
+          test "$(grep -c '^+            host ==' /tmp/AUTHFLOWDIAG004_POLICY_DIFF.txt)" -eq 2
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
