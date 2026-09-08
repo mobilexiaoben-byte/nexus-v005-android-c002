@@ -1,0 +1,308 @@
+--- a/app/build.gradle.kts
++++ b/app/build.gradle.kts
+@@ -7,11 +7,11 @@
+     compileSdk = 36
+ 
+     defaultConfig {
+-        applicationId = "nexus.android.c002"
++        applicationId = "nexus.android.c002.authflowdiag002"
+         minSdk = 24
+         targetSdk = 36
+-        versionCode = 2
+-        versionName = "0.0.2-c002"
++        versionCode = 3
++        versionName = "0.0.3-c002-authflowdiag002"
+     }
+ 
+     compileOptions {
+--- a/app/src/main/java/nexus/android/c002/MainActivity.kt
++++ b/app/src/main/java/nexus/android/c002/MainActivity.kt
+@@ -1,9 +1,14 @@
+ package nexus.android.c002
+ 
+ import android.app.Activity
++import android.net.Uri
+ import android.os.Bundle
++import android.os.Message
+ import android.view.View
++import android.webkit.WebChromeClient
++import android.webkit.WebResourceError
+ import android.webkit.WebResourceRequest
++import android.webkit.WebResourceResponse
+ import android.webkit.WebSettings
+ import android.webkit.WebView
+ import android.webkit.WebViewClient
+@@ -21,6 +26,9 @@
+     private lateinit var status: TextView
+     private var bridge: NexusWebBridge? = null
+     private var describePassed = false
++    private var diagnosticStopped = false
++    private var diagnosticSequence = 0
++    private val diagnosticEvents = mutableListOf<String>()
+ 
+     override fun onCreate(savedInstanceState: Bundle?) {
+         super.onCreate(savedInstanceState)
+@@ -44,13 +52,36 @@
+             return
+         }
+ 
++        webView.webChromeClient = object : WebChromeClient() {
++            override fun onCreateWindow(
++                view: WebView?,
++                isDialog: Boolean,
++                isUserGesture: Boolean,
++                resultMsg: Message?
++            ): Boolean {
++                recordDiagnostic(
++                    event = "onCreateWindow",
++                    rawUrl = view?.url,
++                    detail = "dialog=$isDialog;user_gesture=$isUserGesture"
++                )
++                block("AUTHFLOW_NEW_WINDOW_REQUESTED")
++                return false
++            }
++        }
++
+         webView.webViewClient = object : WebViewClient() {
+             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+-                val url = request.url.toString()
+-                return if (OriginPolicy.isTopLevelNavigationAllowed(url)) {
++                val rawUrl = request.url.toString()
++                val allowed = OriginPolicy.isTopLevelNavigationAllowed(rawUrl)
++                recordDiagnostic(
++                    event = "shouldOverrideUrlLoading",
++                    rawUrl = rawUrl,
++                    detail = "main_frame=${request.isForMainFrame};method=${request.method};redirect=${request.isRedirect};gesture=${request.hasGesture()};allowed=$allowed"
++                )
++                return if (allowed) {
+                     false
+                 } else {
+-                    block("ANDROID_NAVIGATION_ORIGIN_BLOCKED:${request.url.host}")
++                    block("ANDROID_NAVIGATION_ORIGIN_BLOCKED:${sanitizeHost(rawUrl)}")
+                     true
+                 }
+             }
+@@ -58,16 +89,47 @@
+             override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
+                 describePassed = false
+                 bridge?.clearForNavigation()
+-                status.text = "DESCRIBE pending — loading $url"
++                recordDiagnostic("onPageStarted", url, "main_frame=true")
++            }
++
++            override fun onPageFinished(view: WebView, url: String) {
++                recordDiagnostic("onPageFinished", url, "main_frame=true")
++            }
++
++            override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
++                recordDiagnostic(
++                    event = "onReceivedError",
++                    rawUrl = request.url.toString(),
++                    detail = "main_frame=${request.isForMainFrame};code=${error.errorCode}"
++                )
++                if (request.isForMainFrame) {
++                    block("AUTHFLOW_MAIN_FRAME_WEB_ERROR_${error.errorCode}")
++                }
++            }
++
++            override fun onReceivedHttpError(
++                view: WebView,
++                request: WebResourceRequest,
++                errorResponse: WebResourceResponse
++            ) {
++                val statusCode = errorResponse.statusCode
++                recordDiagnostic(
++                    event = "onReceivedHttpError",
++                    rawUrl = request.url.toString(),
++                    detail = "main_frame=${request.isForMainFrame};status=$statusCode"
++                )
++                if (request.isForMainFrame && statusCode >= 400) {
++                    block("AUTHFLOW_MAIN_FRAME_HTTP_$statusCode")
++                }
+             }
+         }
+ 
+-        status.text = "C002 DESCRIBE-only runtime — open ChatGPT and authenticate; no LLM job will be dispatched"
++        renderStatus("AUTHFLOWDIAG002 ACTIVE — DESCRIBE-only; no LLM job will be dispatched")
+         webView.loadUrl(CHATGPT_ORIGIN + "/")
+     }
+ 
+     private fun handleBridgeMessage(origin: String, payload: String) {
+-        if (describePassed) return
++        if (describePassed || diagnosticStopped) return
+         val message = runCatching { JSONObject(payload) }.getOrElse {
+             block("ANDROID_DESCRIBE_MESSAGE_MALFORMED")
+             return
+@@ -82,6 +144,7 @@
+             return
+         }
+         val authState = auth.optString("state", "UNKNOWN")
++        recordDiagnostic("bridgeStatus", origin, "auth_state=$authState")
+         val descriptor = BridgeDescriptor(
+             authenticated = authState == "AUTHENTICATED",
+             origin = origin,
+@@ -92,6 +155,7 @@
+         val gate = RuntimeGate.validateDescriptor(descriptor, CHATGPT_ORIGIN)
+         val out = JSONObject()
+             .put("contract", "NEXUS_ANDROID_DESCRIBE_C002")
++            .put("diagnostic", "V005-C002-AUTHFLOWDIAG002-DEVICE-001")
+             .put("provider_family", "OPENAI")
+             .put("adapter_id", "ADP-OPENAI-FAMILY")
+             .put("origin", origin)
+@@ -108,7 +172,10 @@
+ 
+         if (!gate.pass) {
+             if (gate.code == "ANDROID_AUTH_REQUIRED") {
+-                status.text = "DESCRIBE BLOCKED — ANDROID_AUTH_REQUIRED\nAuthenticate in ChatGPT; retry is automatic.\n$out"
++                renderStatus(
++                    "DESCRIBE BLOCKED — ANDROID_AUTH_REQUIRED — authenticate in ChatGPT; retry is automatic",
++                    out.toString(2)
++                )
+             } else {
+                 block("DESCRIBE_${gate.code}")
+             }
+@@ -116,7 +183,9 @@
+         }
+ 
+         describePassed = true
+-        status.text = "DESCRIBE PASS — STOP GATE\n${out.toString(2)}"
++        recordDiagnostic("DESCRIBE_PASS", origin, "authenticated=true")
++        diagnosticStopped = true
++        renderStatus("DESCRIBE PASS — STOP GATE", out.toString(2))
+         // Deliberately no provider job dispatch here. V-005 runtime proof must stop after DESCRIBE.
+     }
+ 
+@@ -127,19 +196,85 @@
+             allowFileAccess = false
+             allowContentAccess = false
+             mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+-            setSupportMultipleWindows(false)
++            // Diagnostic-only: surface popup/new-window attempts through WebChromeClient.onCreateWindow.
++            // The callback always returns false; no secondary WebView is created and no host is added.
++            setSupportMultipleWindows(true)
++            javaScriptCanOpenWindowsAutomatically = false
+         }
+         WebView.setWebContentsDebuggingEnabled(false)
+     }
+ 
++    private fun recordDiagnostic(event: String, rawUrl: String?, detail: String? = null) {
++        if (diagnosticStopped) return
++        diagnosticSequence += 1
++        val line = buildString {
++            append(diagnosticSequence)
++            append(" ")
++            append(event)
++            if (!rawUrl.isNullOrBlank()) {
++                append(" url=")
++                append(sanitizeUrl(rawUrl))
++                append(" host=")
++                append(sanitizeHost(rawUrl))
++            }
++            if (!detail.isNullOrBlank()) {
++                append(" ")
++                append(detail)
++            }
++        }
++        diagnosticEvents.add(line)
++        while (diagnosticEvents.size > MAX_DIAGNOSTIC_EVENTS) diagnosticEvents.removeAt(0)
++        renderStatus("AUTHFLOWDIAG002 ACTIVE")
++    }
++
++    private fun sanitizeUrl(rawUrl: String): String {
++        val uri = runCatching { Uri.parse(rawUrl) }.getOrNull() ?: return "<invalid>"
++        val scheme = uri.scheme?.lowercase() ?: "<no-scheme>"
++        val host = uri.host?.lowercase() ?: "<no-host>"
++        val port = uri.port
++        val portPart = if (port > 0 && !isDefaultPort(scheme, port)) ":$port" else ""
++        val pathDepth = uri.pathSegments?.size ?: 0
++        val pathShape = if (pathDepth == 0) "/" else "/<path:$pathDepth>"
++        return "$scheme://$host$portPart$pathShape"
++    }
++
++    private fun sanitizeHost(rawUrl: String): String {
++        val uri = runCatching { Uri.parse(rawUrl) }.getOrNull() ?: return "<invalid>"
++        return uri.host?.lowercase() ?: "<no-host>"
++    }
++
++    private fun isDefaultPort(scheme: String, port: Int): Boolean =
++        (scheme == "https" && port == 443) || (scheme == "http" && port == 80)
++
++    private fun renderStatus(headline: String, body: String? = null) {
++        status.text = buildString {
++            append(headline)
++            if (diagnosticEvents.isNotEmpty()) {
++                append("\n\nAUTHFLOW EVENTS — SANITIZED\n")
++                diagnosticEvents.forEach { append(it).append('\n') }
++            }
++            if (!body.isNullOrBlank()) {
++                append("\n")
++                append(body)
++            }
++        }
++    }
++
+     private fun block(code: String) {
+-        status.text = "BLOCKED — $code"
++        if (!diagnosticStopped && ::status.isInitialized) {
++            diagnosticSequence += 1
++            diagnosticEvents.add("$diagnosticSequence STOP code=$code")
++            while (diagnosticEvents.size > MAX_DIAGNOSTIC_EVENTS) diagnosticEvents.removeAt(0)
++        }
++        diagnosticStopped = true
++        if (::status.isInitialized) renderStatus("BLOCKED — $code")
+         if (::webView.isInitialized) webView.visibility = View.GONE
+     }
+ 
+     companion object {
+-        const val PROFILE_NAME = "nexus_provider_profile_c002"
++        const val PROFILE_NAME = "nexus_provider_profile_c002_authflowdiag002"
+         const val CHATGPT_ORIGIN = "https://chatgpt.com"
+         const val CHATGPT_CHANNEL = "NEXUS_POC022_C8B2R1"
++        const val MAX_DIAGNOSTIC_EVENTS = 12
+     }
+ }
+--- a/AUTHFLOWDIAG002_BASELINE_SHA256.txt
++++ b/AUTHFLOWDIAG002_BASELINE_SHA256.txt
+@@ -0,0 +1,4 @@
++3540ddf94bf7e1693711140e8b43313c63989a021e795beaeef116acea8c03ce  app/src/main/java/nexus/android/c002/web/OriginPolicy.kt
++a842eb5d15d23b0ace09674585cefbfba2a753c155eeb5b0c0df6aaf9324275a  app/src/main/java/nexus/android/c002/web/NexusWebBridge.kt
++4a183b76dfb56eb9d2f51a553e69ad138a9dea1d251c221c5b6f09e6dbe618ea  app/src/main/assets/nexus/chatgpt_provider_c002.js
++f1dc78cdbadcc252a529c2db86b15ac42a92f0f2c132181cd1072bc24b131366  app/src/main/assets/nexus/claude_provider_c002.js
+--- a/run_authflowdiag002_validation.sh
++++ b/run_authflowdiag002_validation.sh
+@@ -0,0 +1,35 @@
++#!/usr/bin/env bash
++set -euo pipefail
++ROOT="$(cd "$(dirname "$0")" && pwd)"
++MAIN="$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt"
++PASS=0
++FAIL=0
++check() {
++  local id="$1"; shift
++  if "$@"; then echo "PASS $id"; PASS=$((PASS+1)); else echo "FAIL $id"; FAIL=$((FAIL+1)); fi
++}
++check_text() { grep -Fq "$2" "$1"; }
++
++check D01_marker check_text "$MAIN" 'V005-C002-AUTHFLOWDIAG002-DEVICE-001'
++check D02_page_started check_text "$MAIN" 'override fun onPageStarted'
++check D03_page_finished check_text "$MAIN" 'override fun onPageFinished'
++check D04_override_loading check_text "$MAIN" 'override fun shouldOverrideUrlLoading'
++check D05_received_error check_text "$MAIN" 'override fun onReceivedError'
++check D06_http_error check_text "$MAIN" 'override fun onReceivedHttpError'
++check D07_main_frame check_text "$MAIN" 'request.isForMainFrame'
++check D08_new_window check_text "$MAIN" 'override fun onCreateWindow'
++check D09_popup_fail_closed check_text "$MAIN" 'AUTHFLOW_NEW_WINDOW_REQUESTED'
++check D10_sanitized_url check_text "$MAIN" 'append(sanitizeUrl(rawUrl))'
++check D11_no_query_fragment_logging bash -c "! grep -Eq 'uri\.(query|encodedQuery|fragment|encodedFragment)|request\.url\.query|request\.url\.fragment' '$MAIN'"
++check D12_no_raw_loading_status bash -c "! grep -Fq 'loading \$url' '$MAIN'"
++check D13_origin_policy_unchanged bash -c "cd '$ROOT' && echo '3540ddf94bf7e1693711140e8b43313c63989a021e795beaeef116acea8c03ce  app/src/main/java/nexus/android/c002/web/OriginPolicy.kt' | sha256sum -c - >/dev/null"
++check D14_bridge_unchanged bash -c "cd '$ROOT' && echo 'a842eb5d15d23b0ace09674585cefbfba2a753c155eeb5b0c0df6aaf9324275a  app/src/main/java/nexus/android/c002/web/NexusWebBridge.kt' | sha256sum -c - >/dev/null"
++check D15_chatgpt_adapter_unchanged bash -c "cd '$ROOT' && echo '4a183b76dfb56eb9d2f51a553e69ad138a9dea1d251c221c5b6f09e6dbe618ea  app/src/main/assets/nexus/chatgpt_provider_c002.js' | sha256sum -c - >/dev/null"
++check D16_claude_adapter_unchanged bash -c "cd '$ROOT' && echo 'f1dc78cdbadcc252a529c2db86b15ac42a92f0f2c132181cd1072bc24b131366  app/src/main/assets/nexus/claude_provider_c002.js' | sha256sum -c - >/dev/null"
++check D17_no_provider_job check_text "$MAIN" 'Deliberately no provider job dispatch here.'
++check D18_side_by_side_package check_text "$ROOT/app/build.gradle.kts" 'applicationId = "nexus.android.c002.authflowdiag002"'
++check D19_debugging_disabled check_text "$MAIN" 'WebView.setWebContentsDebuggingEnabled(false)'
++check D20_no_allowlist_edit bash -c "cd '$ROOT' && sha256sum -c AUTHFLOWDIAG002_BASELINE_SHA256.txt >/dev/null"
++
++echo "AUTHFLOWDIAG002_STATIC_RESULT pass=$PASS fail=$FAIL"
++test "$FAIL" -eq 0
