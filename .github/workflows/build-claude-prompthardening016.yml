@@ -6,6 +6,8 @@ on:
       - v005-c002-claude-prompt-submission-hardening-016
     paths:
       - 'claudeprompthardening016/**'
+      - 'clauderesultdomdiag015/**'
+      - 'branding/**'
       - '.github/workflows/build-claude-prompthardening016.yml'
   workflow_dispatch:
 
@@ -53,6 +55,7 @@ jobs:
           grep -F 'CLAUDE_OAUTH_HANDOFF_014_STATIC_RESULT pass=33 fail=0' /tmp/CLAUDE014_VALIDATION.txt
 
           python3 clauderesultdomdiag015/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/reference015/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          python3 branding/ensure_launcher.py "$GITHUB_WORKSPACE/reference015/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
           chmod +x clauderesultdomdiag015/run_validation.sh
           clauderesultdomdiag015/run_validation.sh "$GITHUB_WORKSPACE/reference015/V005_ANDROID_CHROMIUM_WEBVIEW_C002" "$GITHUB_WORKSPACE/reference014/V005_ANDROID_CHROMIUM_WEBVIEW_C002" | tee /tmp/CLAUDE015_VALIDATION.txt
           grep -F 'CLAUDE_RESULT_DOM_DIAGNOSTIC_015_STATIC_RESULT pass=27 fail=0' /tmp/CLAUDE015_VALIDATION.txt
@@ -84,10 +87,35 @@ jobs:
           claudeprompthardening016/run_validation.sh "$ROOT" "$REF" | tee /tmp/CLAUDE016_VALIDATION.txt
           grep -F 'CLAUDE_PROMPT_SUBMISSION_HARDENING_016_STATIC_RESULT pass=30 fail=0' /tmp/CLAUDE016_VALIDATION.txt
 
+      - name: Apply canonical NEXUS launcher branding
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          python3 branding/ensure_launcher.py "$ROOT"
+          grep -F 'android:icon="@mipmap/ic_launcher"' "$ROOT/app/src/main/AndroidManifest.xml"
+          grep -F 'android:roundIcon="@mipmap/ic_launcher_round"' "$ROOT/app/src/main/AndroidManifest.xml"
+          test -f "$ROOT/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml"
+          test -f "$ROOT/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml"
+          test -f "$ROOT/app/src/main/res/drawable/nexus_launcher_foreground.xml"
+
       - name: Build APK
         working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
         shell: bash
         run: gradle :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Verify NEXUS launcher in built APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          APK="$ROOT/app/build/outputs/apk/debug/app-debug.apk"
+          AAPT="$ANDROID_HOME/build-tools/36.0.0/aapt"
+          test -f "$APK"
+          "$AAPT" dump badging "$APK" | tee /tmp/CLAUDE016_BADGING.txt
+          grep -E "application:.*icon='res/mipmap" /tmp/CLAUDE016_BADGING.txt
+          unzip -l "$APK" | grep -E 'res/mipmap-anydpi-v26/ic_launcher(_round)?\.xml|res/drawable/nexus_launcher_foreground\.xml' | tee /tmp/CLAUDE016_ICON_FILES.txt
+          test "$(wc -l < /tmp/CLAUDE016_ICON_FILES.txt)" -ge 3
 
       - name: Prepare artifacts
         shell: bash
@@ -107,6 +135,8 @@ jobs:
           cp /tmp/CLAUDE015_VALIDATION.txt .
           cp /tmp/CLAUDE016_CORE.txt .
           cp /tmp/CLAUDE016_VALIDATION.txt .
+          cp /tmp/CLAUDE016_BADGING.txt .
+          cp /tmp/CLAUDE016_ICON_FILES.txt .
           sha256sum \
             "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt" \
             "$ROOT/app/src/main/assets/nexus/chatgpt_provider_c002.js" \
@@ -143,4 +173,6 @@ jobs:
             CLAUDE015_VALIDATION.txt
             CLAUDE016_CORE.txt
             CLAUDE016_VALIDATION.txt
+            CLAUDE016_BADGING.txt
+            CLAUDE016_ICON_FILES.txt
           if-no-files-found: error
