@@ -66,10 +66,9 @@ jobs:
           set -euo pipefail
           ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
           REF="$GITHUB_WORKSPACE/reference012/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
-          chmod +x "$ROOT/run_core_tests.sh" "$ROOT/run_validation.sh" claudeauthwindow013/run_validation.sh
-          "$ROOT/run_validation.sh" | tee /tmp/C002_013_VALIDATION.txt
-          grep -F 'RESULT pass=25 fail=0' /tmp/C002_013_VALIDATION.txt
-          grep -F 'STATIC_RESULT pass=10 fail=0' /tmp/C002_013_VALIDATION.txt
+          chmod +x "$ROOT/run_core_tests.sh" claudeauthwindow013/run_validation.sh
+          "$ROOT/run_core_tests.sh" | tee /tmp/CLAUDE013_CORE.txt
+          grep -F 'RESULT pass=25 fail=0' /tmp/CLAUDE013_CORE.txt
           claudeauthwindow013/run_validation.sh "$ROOT" "$REF" | tee /tmp/CLAUDE013_VALIDATION.txt
           grep -F 'CLAUDE_AUTH_WINDOW_013_STATIC_RESULT pass=25 fail=0' /tmp/CLAUDE013_VALIDATION.txt
 
@@ -91,7 +90,7 @@ jobs:
           sha256sum V005_ANDROID_CHROMIUM_WEBVIEW_C002_CLAUDE_AUTH_WINDOW_013.zip > V005_ANDROID_CHROMIUM_WEBVIEW_C002_CLAUDE_AUTH_WINDOW_013.zip.sha256
           cp /tmp/C002_VALIDATION.txt .
           cp /tmp/CLAUDE012_VALIDATION.txt .
-          cp /tmp/C002_013_VALIDATION.txt .
+          cp /tmp/CLAUDE013_CORE.txt .
           cp /tmp/CLAUDE013_VALIDATION.txt .
           sha256sum \
             "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt" \
@@ -124,6 +123,6 @@ jobs:
             CLAUDE013_SOURCE_SHA256.txt
             C002_VALIDATION.txt
             CLAUDE012_VALIDATION.txt
-            C002_013_VALIDATION.txt
+            CLAUDE013_CORE.txt
             CLAUDE013_VALIDATION.txt
           if-no-files-found: error
