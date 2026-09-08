@@ -1,0 +1,265 @@
+name: NEXUS V005 EXECUTION PROOF 006 BLOCKHOST DIAG - Build APK
+
+on:
+  push:
+    branches: [v005-executionproof006-blockhostdiag]
+    paths: ['.github/workflows/build-executionproof006-blockhostdiag.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate frozen C002
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '26b5b157b487eda3a0c92198066d39beb5e6eb1149a3c4a705b49274c636eed4  V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip' | sha256sum -c -
+          mkdir base
+          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d base
+          cd base/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+          chmod +x run_validation.sh run_core_tests.sh
+          ./run_validation.sh | tee /tmp/C002_VALIDATION.txt
+          grep -F 'RESULT pass=25 fail=0' /tmp/C002_VALIDATION.txt
+          grep -F 'STATIC_RESULT pass=10 fail=0' /tmp/C002_VALIDATION.txt
+
+      - name: Derive BLOCKHOST diagnostic
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp -a base work
+          ROOT='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002'
+          cp executionproof006/MainActivity.kt "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt"
+          cp executionproof006/chatgpt_provider_c002.js "$ROOT/app/src/main/assets/nexus/chatgpt_provider_c002.js"
+          sha256sum executionproof006/chatgpt_provider_c002.js > /tmp/EXEC006_PROVIDER_SOURCE.sha256
+
+          python3 - "$ROOT" <<'PY'
+          from pathlib import Path
+          import sys
+          r=Path(sys.argv[1])
+
+          p=r/'app/build.gradle.kts'
+          s=p.read_text()
+          s=s.replace('applicationId = "nexus.android.c002"','applicationId = "nexus.android.c002.executionproof006.blockhostdiag"')
+          s=s.replace('versionCode = 2','versionCode = 8')
+          s=s.replace('versionName = "0.0.2-c002"','versionName = "0.0.8-c002-executionproof006-blockhostdiag"')
+          p.write_text(s)
+
+          p=r/'app/src/main/AndroidManifest.xml'
+          s=p.read_text()
+          old='android:label="NEXUS Android C002"'
+          if old not in s: raise SystemExit('manifest label baseline mismatch')
+          p.write_text(s.replace(old,'android:label="NEXUS C002 BLOCKHOST DIAG"'))
+
+          p=r/'app/src/main/res/layout/activity_main.xml'
+          s=p.read_text()
+          needle='android:padding="12dp"\n        android:text="NEXUS C002 — initializing"'
+          repl='android:padding="8dp"\n        android:maxLines="2"\n        android:ellipsize="end"\n        android:clickable="true"\n        android:focusable="true"\n        android:text="BLOCKHOST DIAG — initializing"'
+          if needle not in s: raise SystemExit('layout baseline mismatch')
+          p.write_text(s.replace(needle,repl))
+
+          p=r/'app/src/main/java/nexus/android/c002/web/OriginPolicy.kt'
+          s=p.read_text()
+          needle='            host == "anthropic.com" || host.endsWith(".anthropic.com")\n'
+          repl='            host == "anthropic.com" || host.endsWith(".anthropic.com") ||\n            host == "accounts.google.com" ||\n            host == "accounts.youtube.com"\n'
+          if s.count(needle)!=1: raise SystemExit('policy baseline mismatch')
+          p.write_text(s.replace(needle,repl))
+
+          p=r/'app/src/main/java/nexus/android/c002/MainActivity.kt'
+          s=p.read_text()
+
+          needle='    private var lastAuthState: String? = null\n'
+          repl='    private var lastAuthState: String? = null\n    private var persistedBlockedHost: String? = null\n'
+          if s.count(needle)!=1: raise SystemExit('field injection mismatch')
+          s=s.replace(needle,repl)
+
+          needle='''        status.setOnClickListener {
+            diagnosticExpanded = !diagnosticExpanded
+            renderStatus()
+        }
+'''
+          repl='''        status.setOnClickListener {
+            diagnosticExpanded = !diagnosticExpanded
+            renderStatus()
+        }
+        persistedBlockedHost = getSharedPreferences(BLOCKHOST_PREFS, MODE_PRIVATE).getString(BLOCKHOST_KEY, null)
+        if (!persistedBlockedHost.isNullOrBlank()) {
+            currentHeadline = "LAST_BLOCKED_HOST RECOVERED — tap for exact host"
+            currentBody = "LAST_BLOCKED_HOST=${persistedBlockedHost}"
+        }
+'''
+          if s.count(needle)!=1: raise SystemExit('onCreate persistence injection mismatch')
+          s=s.replace(needle,repl)
+
+          needle='''                return if (allowed) {
+                    false
+                } else {
+                    block("ANDROID_NAVIGATION_ORIGIN_BLOCKED:${sanitizeHost(rawUrl)}")
+                    true
+                }
+'''
+          repl='''                return if (allowed) {
+                    false
+                } else {
+                    val blockedHost = sanitizeHost(rawUrl)
+                    persistBlockedHost(blockedHost)
+                    block("ANDROID_NAVIGATION_ORIGIN_BLOCKED:$blockedHost")
+                    true
+                }
+'''
+          if s.count(needle)!=1: raise SystemExit('navigation block injection mismatch')
+          s=s.replace(needle,repl)
+
+          needle='''                    currentHeadline = ACTIVE_HEADLINE
+                    currentBody = null
+                    recordDiagnostic("onPageStarted", url, "main_frame=true")
+'''
+          repl='''                    currentHeadline = if (persistedBlockedHost.isNullOrBlank()) ACTIVE_HEADLINE else "LAST_BLOCKED_HOST RECOVERED — tap for exact host"
+                    currentBody = persistedBlockedHost?.let { "LAST_BLOCKED_HOST=$it" }
+                    recordDiagnostic("onPageStarted", url, "main_frame=true")
+'''
+          if s.count(needle)!=1: raise SystemExit('navigation reset injection mismatch')
+          s=s.replace(needle,repl)
+
+          needle='''        describePassed = true
+        recordDiagnostic("DESCRIBE_PASS", origin, "authenticated=true")
+        currentHeadline = "DESCRIBE PASS — execution proof starting"
+        currentBody = null
+        renderStatus()
+        startExecutionProof(origin)
+'''
+          repl='''        describePassed = true
+        proofStopped = true
+        recordFinalEvent("DESCRIBE_PASS", "authenticated=true;blockhost_diag_no_execution=true")
+        currentHeadline = "BLOCKHOST DIAG PASS — authenticated DESCRIBE; no provider job"
+        currentBody = persistedBlockedHost?.let { "LAST_BLOCKED_HOST=$it" } ?: "LAST_BLOCKED_HOST=<none observed in this run>"
+        renderStatus()
+'''
+          if s.count(needle)!=1: raise SystemExit('describe stop-gate injection mismatch')
+          s=s.replace(needle,repl)
+
+          needle='''    private fun sanitizeUrl(rawUrl: String): String {
+'''
+          repl='''    private fun persistBlockedHost(host: String) {
+        if (host.isBlank() || host == "<invalid>" || host == "<no-host>") return
+        persistedBlockedHost = host.lowercase()
+        getSharedPreferences(BLOCKHOST_PREFS, MODE_PRIVATE)
+            .edit()
+            .putString(BLOCKHOST_KEY, persistedBlockedHost)
+            .apply()
+        currentBody = "LAST_BLOCKED_HOST=$persistedBlockedHost"
+    }
+
+    private fun sanitizeUrl(rawUrl: String): String {
+'''
+          if s.count(needle)!=1: raise SystemExit('persist function injection mismatch')
+          s=s.replace(needle,repl)
+
+          s=s.replace('const val PROFILE_NAME = "nexus_provider_profile_c002_executionproof006"','const val PROFILE_NAME = "nexus_provider_profile_c002_executionproof006_blockhostdiag"')
+          needle='''        const val ACTIVE_HEADLINE = "EXECUTION PROOF 006 — authenticate in ChatGPT; one read-only proof job will run after DESCRIBE PASS"
+'''
+          repl='''        const val BLOCKHOST_PREFS = "nexus_v005_blockhost_diag"
+        const val BLOCKHOST_KEY = "last_blocked_host"
+        const val ACTIVE_HEADLINE = "BLOCKHOST DIAG — authenticate only; no provider job will run"
+'''
+          if s.count(needle)!=1: raise SystemExit('constant injection mismatch')
+          s=s.replace(needle,repl)
+          s=s.replace('const val AUTH_REQUIRED_HEADLINE = "AUTH REQUIRED — sign in below; execution starts only after authenticated DESCRIBE PASS"','const val AUTH_REQUIRED_HEADLINE = "AUTH REQUIRED — sign in below; BLOCKHOST DIAG only, no provider execution"')
+          p.write_text(s)
+          PY
+
+          test "$(sha256sum "$ROOT/app/src/main/java/nexus/android/c002/web/OriginPolicy.kt" | cut -d' ' -f1)" = '80241cf1581bdac6e87f602d300acebef5785f93e9bb570de4925b99118b76b3'
+          test "$(sha256sum "$ROOT/app/src/main/assets/nexus/chatgpt_provider_c002.js" | cut -d' ' -f1)" = "$(cut -d' ' -f1 /tmp/EXEC006_PROVIDER_SOURCE.sha256)"
+          sha256sum "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt" "$ROOT/app/src/main/assets/nexus/chatgpt_provider_c002.js" "$ROOT/app/src/main/java/nexus/android/c002/web/OriginPolicy.kt" > /tmp/BLOCKHOST_DIAG_SOURCE_SHA256.txt
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Validate BLOCKHOST diagnostic
+        working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./run_core_tests.sh | tee /tmp/BLOCKHOST_CORE.txt
+          grep -F 'RESULT pass=25 fail=0' /tmp/BLOCKHOST_CORE.txt
+          MAIN='app/src/main/java/nexus/android/c002/MainActivity.kt'
+          POLICY='app/src/main/java/nexus/android/c002/web/OriginPolicy.kt'
+          PASS=0; FAIL=0
+          check(){ local id="$1"; shift; if "$@"; then echo "PASS $id"; PASS=$((PASS+1)); else echo "FAIL $id"; FAIL=$((FAIL+1)); fi; }
+          has(){ grep -Fq "$2" "$1"; }
+          check B01_package has app/build.gradle.kts 'applicationId = "nexus.android.c002.executionproof006.blockhostdiag"'
+          check B02_version has app/build.gradle.kts 'versionCode = 8'
+          check B03_label has app/src/main/AndroidManifest.xml 'android:label="NEXUS C002 BLOCKHOST DIAG"'
+          check B04_profile has "$MAIN" 'nexus_provider_profile_c002_executionproof006_blockhostdiag'
+          check B05_prefs has "$MAIN" 'BLOCKHOST_PREFS'
+          check B06_key has "$MAIN" 'BLOCKHOST_KEY'
+          check B07_persist_function has "$MAIN" 'private fun persistBlockedHost(host: String)'
+          check B08_persist_exact_host has "$MAIN" '.putString(BLOCKHOST_KEY, persistedBlockedHost)'
+          check B09_display_exact has "$MAIN" 'LAST_BLOCKED_HOST=$persistedBlockedHost'
+          check B10_recover_exact has "$MAIN" 'LAST_BLOCKED_HOST=${persistedBlockedHost}'
+          check B11_navigation_persist has "$MAIN" 'persistBlockedHost(blockedHost)'
+          check B12_sanitized_host has "$MAIN" 'val blockedHost = sanitizeHost(rawUrl)'
+          check B13_no_execute_call bash -c "! grep -Fq 'startExecutionProof(origin)' '$MAIN'"
+          check B14_describe_stop has "$MAIN" 'blockhost_diag_no_execution=true'
+          check B15_no_provider_job_headline has "$MAIN" 'no provider job'
+          check B16_google_exact has "$POLICY" 'host == "accounts.google.com"'
+          check B17_youtube_exact has "$POLICY" 'host == "accounts.youtube.com"'
+          check B18_no_google_wildcard bash -c "! grep -Fq 'endsWith(\".google.com\")' '$POLICY'"
+          check B19_no_youtube_wildcard bash -c "! grep -Fq 'endsWith(\".youtube.com\")' '$POLICY'"
+          check B20_debug_disabled has "$MAIN" 'WebView.setWebContentsDebuggingEnabled(false)'
+          printf 'BLOCKHOST_DIAG_STATIC_RESULT pass=%d fail=%d\n' "$PASS" "$FAIL" | tee /tmp/BLOCKHOST_VALIDATION.txt
+          test "$FAIL" -eq 0
+
+      - name: Build APK
+        working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+        shell: bash
+        run: gradle :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Prepare artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/build/outputs/apk/debug/app-debug.apk'
+          cp "$APK" NEXUS-V005-C002-EXECUTION-PROOF-006-BLOCKHOST-DIAG-debug.apk
+          sha256sum NEXUS-V005-C002-EXECUTION-PROOF-006-BLOCKHOST-DIAG-debug.apk > NEXUS-V005-C002-EXECUTION-PROOF-006-BLOCKHOST-DIAG-debug.apk.sha256
+          (cd work && zip -qr ../V005_ANDROID_CHROMIUM_WEBVIEW_C002_EXECUTION_PROOF_006_BLOCKHOST_DIAG.zip V005_ANDROID_CHROMIUM_WEBVIEW_C002)
+          cp /tmp/BLOCKHOST_DIAG_SOURCE_SHA256.txt .
+          cp /tmp/C002_VALIDATION.txt .
+          cp /tmp/BLOCKHOST_CORE.txt .
+          cp /tmp/BLOCKHOST_VALIDATION.txt .
+          cat NEXUS-V005-C002-EXECUTION-PROOF-006-BLOCKHOST-DIAG-debug.apk.sha256
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-V005-C002-EXECUTION-PROOF-006-BLOCKHOST-DIAG-debug
+          path: NEXUS-V005-C002-EXECUTION-PROOF-006-BLOCKHOST-DIAG-debug.apk
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-V005-C002-EXECUTION-PROOF-006-BLOCKHOST-DIAG-source
+          path: V005_ANDROID_CHROMIUM_WEBVIEW_C002_EXECUTION_PROOF_006_BLOCKHOST_DIAG.zip
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-V005-C002-EXECUTION-PROOF-006-BLOCKHOST-DIAG-evidence
+          path: |
+            NEXUS-V005-C002-EXECUTION-PROOF-006-BLOCKHOST-DIAG-debug.apk.sha256
+            BLOCKHOST_DIAG_SOURCE_SHA256.txt
+            C002_VALIDATION.txt
+            BLOCKHOST_CORE.txt
+            BLOCKHOST_VALIDATION.txt
+          if-no-files-found: error
