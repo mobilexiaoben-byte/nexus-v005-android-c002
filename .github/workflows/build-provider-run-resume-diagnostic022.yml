@@ -97,7 +97,7 @@ jobs:
           AAPT="$ANDROID_HOME/build-tools/36.0.0/aapt"
           test -f "$APK"
           "$AAPT" dump badging "$APK" | tee /tmp/RESUMEDIAG022_BADGING.txt
-          grep -F "package: name='nexus.android.c002.providerrunresume021'" /tmp/RESUMEDIAG022_BADGING.txt
+          grep -F "package: name='nexus.android.c002.providerresumediag022'" /tmp/RESUMEDIAG022_BADGING.txt
           grep -F "versionCode='23'" /tmp/RESUMEDIAG022_BADGING.txt
           grep -E "application:.*icon='res/mipmap" /tmp/RESUMEDIAG022_BADGING.txt
 
