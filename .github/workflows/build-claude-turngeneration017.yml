@@ -84,8 +84,12 @@ jobs:
           test -f "$ROOT/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml"
           FOREGROUND="$ROOT/app/src/main/res/drawable/nexus_launcher_foreground.xml"
           test -f "$FOREGROUND"
-          grep -F 'android:scaleX="0.72"' "$FOREGROUND"
-          grep -F 'android:scaleY="0.72"' "$FOREGROUND"
+          grep -F 'M54,33.5' "$FOREGROUND"
+          grep -F 'M41,61.5' "$FOREGROUND"
+          if grep -q 'android:scaleX=' "$FOREGROUND"; then
+            echo 'ERROR: launcher must use direct compact coordinates, not group scaling'
+            exit 1
+          fi
 
       - name: Build APK
         working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
