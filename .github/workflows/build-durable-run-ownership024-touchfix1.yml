@@ -92,7 +92,7 @@ jobs:
           "$ROOT/run_core_tests.sh" | tee /tmp/DURABLERUN024_TOUCHFIX1_CORE.txt
           grep -F 'RESULT pass=25 fail=0' /tmp/DURABLERUN024_TOUCHFIX1_CORE.txt
           durablerunownership024/touchfix1_validation.sh "$ROOT" | tee /tmp/DURABLERUN024_TOUCHFIX1_VALIDATION.txt
-          grep -F 'DURABLE_RUN_OWNERSHIP_024_TOUCHFIX1_STATIC_RESULT pass=18 fail=0' /tmp/DURABLERUN024_TOUCHFIX1_VALIDATION.txt
+          grep -F 'DURABLE_RUN_OWNERSHIP_024_TOUCHFIX1_STATIC_RESULT pass=21 fail=0' /tmp/DURABLERUN024_TOUCHFIX1_VALIDATION.txt
 
       - name: Verify NEXUS launcher source
         shell: bash
@@ -117,8 +117,8 @@ jobs:
           AAPT="$ANDROID_HOME/build-tools/36.0.0/aapt"
           test -f "$APK"
           "$AAPT" dump badging "$APK" | tee /tmp/DURABLERUN024_TOUCHFIX1_BADGING.txt
-          grep -F "package: name='nexus.android.c002.durablerunownership024'" /tmp/DURABLERUN024_TOUCHFIX1_BADGING.txt
-          grep -F "versionCode='25'" /tmp/DURABLERUN024_TOUCHFIX1_BADGING.txt
+          grep -F "package: name='nexus.android.c002.durablerunownership024touchfix1'" /tmp/DURABLERUN024_TOUCHFIX1_BADGING.txt
+          grep -F "versionCode='26'" /tmp/DURABLERUN024_TOUCHFIX1_BADGING.txt
           grep -E "application:.*icon='res/mipmap" /tmp/DURABLERUN024_TOUCHFIX1_BADGING.txt
 
       - name: Prepare artifacts
