@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 import subprocess
 import sys
 
@@ -12,11 +13,12 @@ root=work
 p=root/'app/build.gradle.kts'; g=p.read_text()
 for before,after in [
     ('applicationId = "nexus.android.c002.rotationrunstate019"','applicationId = "nexus.android.c002.claudesubmissionproof020"'),
-    ('versionCode = 20','versionCode = 21'),
-    ('versionName = "0.0.20-c002-rotationrunstate019"','versionName = "0.0.21-c002-claude-submission-proof020"')
+    ('versionCode = 20','versionCode = 21')
 ]:
     assert g.count(before)==1, before
     g=g.replace(before,after)
+g,n=re.subn(r'versionName\s*=\s*"0\.0\.20-c002-[^"]+"','versionName = "0.0.21-c002-claude-submission-proof020"',g,count=1)
+assert n==1, '019 versionName anchor'
 p.write_text(g)
 
 p=root/'app/src/main/AndroidManifest.xml'; m=p.read_text()
