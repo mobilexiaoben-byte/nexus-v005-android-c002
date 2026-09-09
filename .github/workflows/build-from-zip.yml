@@ -35,6 +35,11 @@ jobs:
           unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d extracted
           test -f extracted/V005_ANDROID_CHROMIUM_WEBVIEW_C002/settings.gradle.kts
 
+      - name: Apply canonical NEXUS launcher branding
+        uses: mobilexiaoben-byte/nexus-v005-android-c002/branding@main
+        with:
+          root: ${{ github.workspace }}/extracted/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+
       - name: Verify Android SDK
         shell: bash
         run: |
@@ -59,6 +64,11 @@ jobs:
         run: |
           set -euo pipefail
           gradle :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Verify canonical NEXUS launcher in APK
+        uses: mobilexiaoben-byte/nexus-v005-android-c002/branding/verify-apk@main
+        with:
+          apk: ${{ github.workspace }}/extracted/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/build/outputs/apk/debug/app-debug.apk
 
       - name: Prepare APK
         shell: bash
