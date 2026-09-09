@@ -1,5 +1,5 @@
 name: Canonical NEXUS Android Launcher Branding
-description: Apply and verify the canonical NEXUS launcher branding to a derived Android source tree.
+description: Apply and verify the canonical NEXUS launcher branding using Android's official adaptive-icon geometry.
 inputs:
   root:
     description: Absolute path to the Android source root.
@@ -12,14 +12,40 @@ runs:
       run: |
         set -euo pipefail
         python3 "$GITHUB_ACTION_PATH/ensure_launcher.py" "${{ inputs.root }}"
-    - name: Verify canonical launcher branding v4-raster
+
+    - name: Verify Android official adaptive launcher source
       shell: bash
       run: |
         set -euo pipefail
         ROOT="${{ inputs.root }}"
         MANIFEST="$ROOT/app/src/main/AndroidManifest.xml"
+        FG="$ROOT/app/src/main/res/drawable/nexus_launcher_foreground.xml"
+        ADAPT="$ROOT/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml"
+        ROUND="$ROOT/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml"
+
         grep -F 'android:icon="@mipmap/ic_launcher"' "$MANIFEST"
-        grep -F 'android:roundIcon="@mipmap/ic_launcher"' "$MANIFEST"
+        grep -F 'android:roundIcon="@mipmap/ic_launcher_round"' "$MANIFEST"
+        test -f "$FG"
+        test -f "$ADAPT"
+        test -f "$ROUND"
+
+        # Official Android dimensions: 108x108 layers, logo 48..66 dp.
+        grep -F 'android:width="108dp"' "$FG"
+        grep -F 'android:height="108dp"' "$FG"
+        grep -F 'android:viewportWidth="108"' "$FG"
+        grep -F 'android:viewportHeight="108"' "$FG"
+
+        # Canonical SAFE60 geometry. Including strokes it stays within
+        # x=25.46..82.54 and y=24..84, inside the 66x66 safe zone.
+        grep -F 'M54,26.195' "$FG"
+        grep -F 'M27.659,74.488' "$FG"
+        grep -F 'android:strokeWidth="4.39"' "$FG"
+        ! grep -Fq 'android:scaleX=' "$FG"
+        ! grep -Fq 'android:scaleY=' "$FG"
+
+        grep -F '@color/nexus_launcher_background' "$ADAPT"
+        grep -F '@drawable/nexus_launcher_foreground' "$ADAPT"
+
         python3 - "$ROOT" <<'PY'
         from pathlib import Path
         import struct, sys
@@ -27,19 +53,11 @@ runs:
         expected = {'mdpi':48,'hdpi':72,'xhdpi':96,'xxhdpi':144,'xxxhdpi':192}
         sig = b'\x89PNG\r\n\x1a\n'
         for density, size in expected.items():
-            p = root / 'app/src/main/res' / f'mipmap-{density}' / 'ic_launcher.png'
-            data = p.read_bytes()
-            assert data.startswith(sig), p
-            w, h = struct.unpack('>II', data[16:24])
-            assert (w, h) == (size, size), (p, w, h)
-        forbidden = [
-            'app/src/main/res/mipmap-anydpi/ic_launcher.xml',
-            'app/src/main/res/mipmap-anydpi/ic_launcher_round.xml',
-            'app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml',
-            'app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml',
-            'app/src/main/res/drawable/nexus_launcher_foreground.xml',
-        ]
-        for rel in forbidden:
-            assert not (root / rel).exists(), rel
-        print('NEXUS_LAUNCHER_CANONICAL_V4_RASTER_NO_ADAPTIVE=PASS')
+            for name in ('ic_launcher.png', 'ic_launcher_round.png'):
+                p = root / 'app/src/main/res' / f'mipmap-{density}' / name
+                data = p.read_bytes()
+                assert data.startswith(sig), p
+                w, h = struct.unpack('>II', data[16:24])
+                assert (w, h) == (size, size), (p, w, h)
+        print('NEXUS_LAUNCHER_CANONICAL_V5_ANDROID_OFFICIAL_SAFE60=PASS')
         PY
