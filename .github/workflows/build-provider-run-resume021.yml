@@ -1,0 +1,141 @@
+name: NEXUS V005 C002 PROVIDER RUN RESUME SESSION OWNERSHIP 021 - Build APK
+
+on:
+  push:
+    branches:
+      - v005-c002-provider-run-resume-session-ownership-021
+    paths:
+      - 'providerresume021/**'
+      - 'claudesubmissionproof020/**'
+      - 'rotationrunstate019/**'
+      - 'providercomposersync018/**'
+      - 'claudeturngeneration017/**'
+      - 'branding/**'
+      - '.github/workflows/build-provider-run-resume021.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate frozen C002
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '26b5b157b487eda3a0c92198066d39beb5e6eb1149a3c4a705b49274c636eed4  V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip' | sha256sum -c -
+          mkdir base
+          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d base
+          cd base/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+          chmod +x run_validation.sh run_core_tests.sh
+          ./run_validation.sh | tee /tmp/C002_VALIDATION.txt
+          grep -F 'RESULT pass=25 fail=0' /tmp/C002_VALIDATION.txt
+          grep -F 'STATIC_RESULT pass=10 fail=0' /tmp/C002_VALIDATION.txt
+
+      - name: Reconstruct and validate 020 reference
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 claudesubmissionproof020/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/reference020/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          chmod +x claudesubmissionproof020/run_validation.sh
+          claudesubmissionproof020/run_validation.sh "$GITHUB_WORKSPACE/reference020/V005_ANDROID_CHROMIUM_WEBVIEW_C002" "$GITHUB_WORKSPACE/reference019/V005_ANDROID_CHROMIUM_WEBVIEW_C002" 2>/dev/null || true
+          node --check "$GITHUB_WORKSPACE/reference020/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/src/main/assets/nexus/claude_provider_c002.js"
+
+      - name: Derive 021
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 providerresume021/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Validate 021 derivative
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          REF="$GITHUB_WORKSPACE/reference020/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          chmod +x "$ROOT/run_core_tests.sh" providerresume021/run_validation.sh
+          "$ROOT/run_core_tests.sh" | tee /tmp/RESUME021_CORE.txt
+          grep -F 'RESULT pass=25 fail=0' /tmp/RESUME021_CORE.txt
+          providerresume021/run_validation.sh "$ROOT" "$REF" | tee /tmp/RESUME021_VALIDATION.txt
+          grep -F 'PROVIDER_RUN_RESUME_SESSION_OWNERSHIP_021_STATIC_RESULT pass=37 fail=0' /tmp/RESUME021_VALIDATION.txt
+
+      - name: Verify NEXUS launcher source
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          grep -F 'android:icon="@mipmap/ic_launcher"' "$ROOT/app/src/main/AndroidManifest.xml"
+          grep -F 'android:roundIcon="@mipmap/ic_launcher_round"' "$ROOT/app/src/main/AndroidManifest.xml"
+          test -f "$ROOT/app/src/main/res/drawable/nexus_launcher_foreground.xml"
+
+      - name: Build APK
+        working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+        shell: bash
+        run: gradle :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Verify APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          APK="$ROOT/app/build/outputs/apk/debug/app-debug.apk"
+          AAPT="$ANDROID_HOME/build-tools/36.0.0/aapt"
+          test -f "$APK"
+          "$AAPT" dump badging "$APK" | tee /tmp/RESUME021_BADGING.txt
+          grep -F "package: name='nexus.android.c002.providerrunresume021'" /tmp/RESUME021_BADGING.txt
+          grep -E "application:.*icon='res/mipmap" /tmp/RESUME021_BADGING.txt
+
+      - name: Prepare artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002'
+          APK="$ROOT/app/build/outputs/apk/debug/app-debug.apk"
+          cp "$APK" NEXUS-V005-C002-PROVIDER-RUN-RESUME-SESSION-OWNERSHIP-021-debug.apk
+          sha256sum NEXUS-V005-C002-PROVIDER-RUN-RESUME-SESSION-OWNERSHIP-021-debug.apk > NEXUS-V005-C002-PROVIDER-RUN-RESUME-SESSION-OWNERSHIP-021-debug.apk.sha256
+          (cd work && zip -qr ../V005_ANDROID_CHROMIUM_WEBVIEW_C002_PROVIDER_RUN_RESUME_SESSION_OWNERSHIP_021.zip V005_ANDROID_CHROMIUM_WEBVIEW_C002)
+          sha256sum V005_ANDROID_CHROMIUM_WEBVIEW_C002_PROVIDER_RUN_RESUME_SESSION_OWNERSHIP_021.zip > V005_ANDROID_CHROMIUM_WEBVIEW_C002_PROVIDER_RUN_RESUME_SESSION_OWNERSHIP_021.zip.sha256
+          cp /tmp/C002_VALIDATION.txt .
+          cp /tmp/RESUME021_CORE.txt .
+          cp /tmp/RESUME021_VALIDATION.txt .
+          cp /tmp/RESUME021_BADGING.txt .
+          sha256sum "$ROOT/app/src/main/AndroidManifest.xml" "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt" "$ROOT/app/src/main/assets/nexus/chatgpt_provider_c002.js" "$ROOT/app/src/main/assets/nexus/claude_provider_c002.js" "$ROOT/app/src/main/java/nexus/android/c002/web/OriginPolicy.kt" "$ROOT/app/src/main/java/nexus/android/c002/web/NexusWebBridge.kt" > RESUME021_SOURCE_SHA256.txt
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-V005-C002-PROVIDER-RUN-RESUME-SESSION-OWNERSHIP-021-debug
+          path: NEXUS-V005-C002-PROVIDER-RUN-RESUME-SESSION-OWNERSHIP-021-debug.apk
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-V005-C002-PROVIDER-RUN-RESUME-SESSION-OWNERSHIP-021-source
+          path: V005_ANDROID_CHROMIUM_WEBVIEW_C002_PROVIDER_RUN_RESUME_SESSION_OWNERSHIP_021.zip
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-V005-C002-PROVIDER-RUN-RESUME-SESSION-OWNERSHIP-021-evidence
+          path: |
+            NEXUS-V005-C002-PROVIDER-RUN-RESUME-SESSION-OWNERSHIP-021-debug.apk.sha256
+            V005_ANDROID_CHROMIUM_WEBVIEW_C002_PROVIDER_RUN_RESUME_SESSION_OWNERSHIP_021.zip.sha256
+            RESUME021_SOURCE_SHA256.txt
+            C002_VALIDATION.txt
+            RESUME021_CORE.txt
+            RESUME021_VALIDATION.txt
+            RESUME021_BADGING.txt
+          if-no-files-found: error
