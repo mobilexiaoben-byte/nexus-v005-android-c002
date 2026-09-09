@@ -1,5 +1,5 @@
 name: Verify Canonical NEXUS Android Launcher APK
-description: Fail unless the built APK contains and declares the canonical raster NEXUS launcher resources without adaptive-icon masking.
+description: Fail unless the built APK declares and contains the canonical Android official adaptive launcher resources.
 inputs:
   apk:
     description: Absolute path to the APK to verify.
@@ -11,7 +11,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Verify canonical raster launcher in APK
+    - name: Verify official adaptive launcher in APK
       shell: bash
       run: |
         set -euo pipefail
@@ -20,16 +20,31 @@ runs:
         test -f "$APK"
         AAPT="${ANDROID_HOME}/build-tools/36.0.0/aapt"
         test -x "$AAPT"
+
         "$AAPT" dump badging "$APK" | tee /tmp/NEXUS_CANONICAL_LAUNCHER_BADGING.txt
-        grep -E "application:.*icon='res/mipmap[^']*/ic_launcher.png'" /tmp/NEXUS_CANONICAL_LAUNCHER_BADGING.txt
+        grep -E "application:.*icon='res/mipmap[^']*/ic_launcher" /tmp/NEXUS_CANONICAL_LAUNCHER_BADGING.txt
         if [ -n "$EXPECTED_PACKAGE" ]; then
           grep -F "package: name='$EXPECTED_PACKAGE'" /tmp/NEXUS_CANONICAL_LAUNCHER_BADGING.txt
         fi
+
         LIST="$(unzip -Z1 "$APK")"
         for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
           echo "$LIST" | grep -Eq "^res/mipmap-${density}(-v4)?/ic_launcher.png$"
+          echo "$LIST" | grep -Eq "^res/mipmap-${density}(-v4)?/ic_launcher_round.png$"
         done
-        ! echo "$LIST" | grep -Eq '^res/mipmap-anydpi-v26/ic_launcher(_round)?\.xml$'
-        ! echo "$LIST" | grep -Fq 'res/drawable/nexus_launcher_foreground.xml'
+        echo "$LIST" | grep -Fq 'res/mipmap-anydpi-v26/ic_launcher.xml'
+        echo "$LIST" | grep -Fq 'res/mipmap-anydpi-v26/ic_launcher_round.xml'
+        echo "$LIST" | grep -Fq 'res/drawable/nexus_launcher_foreground.xml'
+
+        # Preserve compiled XML evidence from the actual APK. The canonical
+        # geometry is already enforced on source before compilation.
+        "$AAPT" dump xmltree "$APK" res/mipmap-anydpi-v26/ic_launcher.xml \
+          | tee /tmp/NEXUS_CANONICAL_ADAPTIVE_XMLTREE.txt
+        "$AAPT" dump xmltree "$APK" res/drawable/nexus_launcher_foreground.xml \
+          | tee /tmp/NEXUS_CANONICAL_FOREGROUND_XMLTREE.txt
+        grep -F 'adaptive-icon' /tmp/NEXUS_CANONICAL_ADAPTIVE_XMLTREE.txt
+        grep -F 'viewportWidth' /tmp/NEXUS_CANONICAL_FOREGROUND_XMLTREE.txt
+        grep -F 'viewportHeight' /tmp/NEXUS_CANONICAL_FOREGROUND_XMLTREE.txt
+
         sha256sum "$APK"
-        echo 'NEXUS_LAUNCHER_APK_CANONICAL_V4_RASTER_NO_ADAPTIVE=PASS'
+        echo 'NEXUS_LAUNCHER_APK_CANONICAL_V5_ANDROID_OFFICIAL_SAFE60=PASS'
