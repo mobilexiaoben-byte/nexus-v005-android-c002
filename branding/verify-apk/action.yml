@@ -1,0 +1,32 @@
+name: Verify Canonical NEXUS Android Launcher APK
+description: Fail unless the built APK contains and declares the canonical NEXUS launcher resources.
+inputs:
+  apk:
+    description: Absolute path to the APK to verify.
+    required: true
+  expected_package:
+    description: Optional expected Android applicationId/package.
+    required: false
+    default: ''
+runs:
+  using: composite
+  steps:
+    - name: Verify canonical launcher in APK
+      shell: bash
+      run: |
+        set -euo pipefail
+        APK="${{ inputs.apk }}"
+        EXPECTED_PACKAGE="${{ inputs.expected_package }}"
+        test -f "$APK"
+        AAPT="${ANDROID_HOME}/build-tools/36.0.0/aapt"
+        test -x "$AAPT"
+        "$AAPT" dump badging "$APK" | tee /tmp/NEXUS_CANONICAL_LAUNCHER_BADGING.txt
+        grep -E "application:.*icon='res/mipmap" /tmp/NEXUS_CANONICAL_LAUNCHER_BADGING.txt
+        if [ -n "$EXPECTED_PACKAGE" ]; then
+          grep -F "package: name='$EXPECTED_PACKAGE'" /tmp/NEXUS_CANONICAL_LAUNCHER_BADGING.txt
+        fi
+        unzip -l "$APK" | grep -F 'res/drawable/nexus_launcher_foreground.xml'
+        unzip -l "$APK" | grep -F 'res/mipmap-anydpi-v26/ic_launcher.xml'
+        unzip -l "$APK" | grep -F 'res/mipmap-anydpi-v26/ic_launcher_round.xml'
+        sha256sum "$APK"
+        echo 'NEXUS_LAUNCHER_APK_CANONICAL_V3_SAFE50=PASS'
