@@ -1,0 +1,154 @@
+name: NEXUS V005 C002 CLAUDE SUBMISSION STATE PROOF HARDENING 020 - Build APK
+
+on:
+  push:
+    branches:
+      - v005-c002-claude-submission-state-proof-hardening-020
+    paths:
+      - 'claudesubmissionproof020/**'
+      - 'rotationrunstate019/**'
+      - 'providercomposersync018/**'
+      - 'claudeturngeneration017/**'
+      - 'branding/**'
+      - '.github/workflows/build-claude-submission-proof020.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate frozen C002
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '26b5b157b487eda3a0c92198066d39beb5e6eb1149a3c4a705b49274c636eed4  V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip' | sha256sum -c -
+          mkdir base
+          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d base
+          cd base/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+          chmod +x run_validation.sh run_core_tests.sh
+          ./run_validation.sh | tee /tmp/C002_VALIDATION.txt
+          grep -F 'RESULT pass=25 fail=0' /tmp/C002_VALIDATION.txt
+          grep -F 'STATIC_RESULT pass=10 fail=0' /tmp/C002_VALIDATION.txt
+
+      - name: Reconstruct 018 and 019 reference
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 clauderesultdomdiag015/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/reference015/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          python3 claudeprompthardening016/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/reference016/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          python3 claudeturngeneration017/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/reference017/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          python3 providercomposersync018/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/reference018/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          python3 rotationrunstate019/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/reference019/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          chmod +x rotationrunstate019/run_validation.sh
+          rotationrunstate019/run_validation.sh "$GITHUB_WORKSPACE/reference019/V005_ANDROID_CHROMIUM_WEBVIEW_C002" "$GITHUB_WORKSPACE/reference018/V005_ANDROID_CHROMIUM_WEBVIEW_C002" | tee /tmp/ROTATION019_REFERENCE_VALIDATION.txt
+          grep -F 'ROTATION_RUNSTATE_SAFE_019_STATIC_RESULT' /tmp/ROTATION019_REFERENCE_VALIDATION.txt
+          grep -F 'fail=0' /tmp/ROTATION019_REFERENCE_VALIDATION.txt
+
+      - name: Derive 020
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 claudesubmissionproof020/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Validate derivative
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          REF="$GITHUB_WORKSPACE/reference019/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          chmod +x "$ROOT/run_core_tests.sh" claudesubmissionproof020/run_validation.sh
+          "$ROOT/run_core_tests.sh" | tee /tmp/SUBMISSION020_CORE.txt
+          grep -F 'RESULT pass=25 fail=0' /tmp/SUBMISSION020_CORE.txt
+          claudesubmissionproof020/run_validation.sh "$ROOT" "$REF" | tee /tmp/SUBMISSION020_VALIDATION.txt
+          grep -F 'CLAUDE_SUBMISSION_STATE_PROOF_HARDENING_020_STATIC_RESULT' /tmp/SUBMISSION020_VALIDATION.txt
+          grep -F 'fail=0' /tmp/SUBMISSION020_VALIDATION.txt
+
+      - name: Verify inherited NEXUS launcher source
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          grep -F 'android:icon="@mipmap/ic_launcher"' "$ROOT/app/src/main/AndroidManifest.xml"
+          grep -F 'android:roundIcon="@mipmap/ic_launcher_round"' "$ROOT/app/src/main/AndroidManifest.xml"
+          test -f "$ROOT/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml"
+          test -f "$ROOT/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml"
+          test -f "$ROOT/app/src/main/res/drawable/nexus_launcher_foreground.xml"
+
+      - name: Build APK
+        working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+        shell: bash
+        run: gradle :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Verify NEXUS launcher in built APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          APK="$ROOT/app/build/outputs/apk/debug/app-debug.apk"
+          AAPT="$ANDROID_HOME/build-tools/36.0.0/aapt"
+          test -f "$APK"
+          "$AAPT" dump badging "$APK" | tee /tmp/SUBMISSION020_BADGING.txt
+          grep -E "application:.*icon='res/mipmap" /tmp/SUBMISSION020_BADGING.txt
+          unzip -l "$APK" | grep -E 'res/mipmap-anydpi-v26/ic_launcher(_round)?\.xml|res/drawable/nexus_launcher_foreground\.xml' | tee /tmp/SUBMISSION020_ICON_FILES.txt
+          test "$(wc -l < /tmp/SUBMISSION020_ICON_FILES.txt)" -ge 3
+
+      - name: Prepare artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002'
+          APK="$ROOT/app/build/outputs/apk/debug/app-debug.apk"
+          test -f "$APK"
+          cp "$APK" NEXUS-V005-C002-CLAUDE-SUBMISSION-STATE-PROOF-HARDENING-020-debug.apk
+          sha256sum NEXUS-V005-C002-CLAUDE-SUBMISSION-STATE-PROOF-HARDENING-020-debug.apk > NEXUS-V005-C002-CLAUDE-SUBMISSION-STATE-PROOF-HARDENING-020-debug.apk.sha256
+          (cd work && zip -qr ../V005_ANDROID_CHROMIUM_WEBVIEW_C002_CLAUDE_SUBMISSION_STATE_PROOF_HARDENING_020.zip V005_ANDROID_CHROMIUM_WEBVIEW_C002)
+          sha256sum V005_ANDROID_CHROMIUM_WEBVIEW_C002_CLAUDE_SUBMISSION_STATE_PROOF_HARDENING_020.zip > V005_ANDROID_CHROMIUM_WEBVIEW_C002_CLAUDE_SUBMISSION_STATE_PROOF_HARDENING_020.zip.sha256
+          cp /tmp/C002_VALIDATION.txt .
+          cp /tmp/ROTATION019_REFERENCE_VALIDATION.txt .
+          cp /tmp/SUBMISSION020_CORE.txt .
+          cp /tmp/SUBMISSION020_VALIDATION.txt .
+          cp /tmp/SUBMISSION020_BADGING.txt .
+          cp /tmp/SUBMISSION020_ICON_FILES.txt .
+          sha256sum "$ROOT/app/src/main/AndroidManifest.xml" "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt" "$ROOT/app/src/main/assets/nexus/chatgpt_provider_c002.js" "$ROOT/app/src/main/assets/nexus/claude_provider_c002.js" "$ROOT/app/src/main/java/nexus/android/c002/web/OriginPolicy.kt" "$ROOT/app/src/main/java/nexus/android/c002/web/NexusWebBridge.kt" > SUBMISSION020_SOURCE_SHA256.txt
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-V005-C002-CLAUDE-SUBMISSION-STATE-PROOF-HARDENING-020-debug
+          path: NEXUS-V005-C002-CLAUDE-SUBMISSION-STATE-PROOF-HARDENING-020-debug.apk
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-V005-C002-CLAUDE-SUBMISSION-STATE-PROOF-HARDENING-020-source
+          path: V005_ANDROID_CHROMIUM_WEBVIEW_C002_CLAUDE_SUBMISSION_STATE_PROOF_HARDENING_020.zip
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-V005-C002-CLAUDE-SUBMISSION-STATE-PROOF-HARDENING-020-evidence
+          path: |
+            NEXUS-V005-C002-CLAUDE-SUBMISSION-STATE-PROOF-HARDENING-020-debug.apk.sha256
+            V005_ANDROID_CHROMIUM_WEBVIEW_C002_CLAUDE_SUBMISSION_STATE_PROOF_HARDENING_020.zip.sha256
+            SUBMISSION020_SOURCE_SHA256.txt
+            C002_VALIDATION.txt
+            ROTATION019_REFERENCE_VALIDATION.txt
+            SUBMISSION020_CORE.txt
+            SUBMISSION020_VALIDATION.txt
+            SUBMISSION020_BADGING.txt
+            SUBMISSION020_ICON_FILES.txt
+          if-no-files-found: error
