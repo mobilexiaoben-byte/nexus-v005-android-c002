@@ -82,7 +82,10 @@ jobs:
           grep -F 'android:roundIcon="@mipmap/ic_launcher_round"' "$ROOT/app/src/main/AndroidManifest.xml"
           test -f "$ROOT/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml"
           test -f "$ROOT/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml"
-          test -f "$ROOT/app/src/main/res/drawable/nexus_launcher_foreground.xml"
+          FOREGROUND="$ROOT/app/src/main/res/drawable/nexus_launcher_foreground.xml"
+          test -f "$FOREGROUND"
+          grep -F 'android:scaleX="0.72"' "$FOREGROUND"
+          grep -F 'android:scaleY="0.72"' "$FOREGROUND"
 
       - name: Build APK
         working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
