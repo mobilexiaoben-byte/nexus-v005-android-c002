@@ -51,7 +51,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 durablerunownership024/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          python3 durablerunownership024/derive.py "$GITHUB_WORKSPACE" "$ROOT"
+          python3 durablerunownership024/fix_renderer.py "$ROOT"
 
       - uses: actions/setup-java@v5
         with:
