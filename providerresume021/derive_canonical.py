@@ -1,4 +1,5 @@
 from pathlib import Path
+import struct
 import subprocess
 import sys
 
@@ -20,12 +21,21 @@ subprocess.run([
     str(root),
 ], check=True)
 
-fg = root / 'app/src/main/res/drawable/nexus_launcher_foreground.xml'
 manifest = root / 'app/src/main/AndroidManifest.xml'
-text = fg.read_text(encoding='utf-8')
 m = manifest.read_text(encoding='utf-8')
-assert 'M54,33.5' in text and 'M41,61.5' in text
-assert 'android:scaleX=' not in text
 assert 'android:icon="@mipmap/ic_launcher"' in m
-assert 'android:roundIcon="@mipmap/ic_launcher_round"' in m
-print('PROVIDER_RESUME_021_CANONICAL_BRANDING_POSTCONDITION=PASS')
+assert 'android:roundIcon="@mipmap/ic_launcher"' in m
+expected = {'mdpi':48,'hdpi':72,'xhdpi':96,'xxhdpi':144,'xxxhdpi':192}
+sig = b'\x89PNG\r\n\x1a\n'
+for density, size in expected.items():
+    p = root / 'app/src/main/res' / f'mipmap-{density}' / 'ic_launcher.png'
+    data = p.read_bytes()
+    assert data.startswith(sig)
+    assert struct.unpack('>II', data[16:24]) == (size, size)
+for rel in (
+    'app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml',
+    'app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml',
+    'app/src/main/res/drawable/nexus_launcher_foreground.xml',
+):
+    assert not (root / rel).exists(), rel
+print('PROVIDER_RESUME_021_CANONICAL_BRANDING_POSTCONDITION=PASS v4_raster_no_adaptive')
