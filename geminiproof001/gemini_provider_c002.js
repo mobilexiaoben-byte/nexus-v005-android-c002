@@ -242,7 +242,7 @@
     throw new Error('GEMINI_PROMPT_SUBMISSION_NOT_ESTABLISHED');
   }
 
-  async function waitForModelResult(beforeCount,timeout=160000){
+  async function waitForModelResult(bridgeRunId,beforeCount,timeout=160000){
     const deadline=Date.now()+timeout;
     let validText='',validSince=0,validParsed=null,lastCount=beforeCount;
     while(Date.now()<deadline){
@@ -253,7 +253,7 @@
         const candidate=parseCompleteResultCandidate(txt);
         if(candidate){
           if(candidate.normalized_text===validText){ if(!validSince) validSince=Date.now(); }
-          else { validText=candidate.normalized_text; validParsed=candidate.parsed; validSince=Date.now(); await progress('','GEMINI_JSON_COMPLETE_DETECTED'); }
+          else { validText=candidate.normalized_text; validParsed=candidate.parsed; validSince=Date.now(); await progress(bridgeRunId,'GEMINI_JSON_COMPLETE_DETECTED'); }
           if(Date.now()-validSince>=5000){
             return {text:validText,parsed:validParsed,node_count:nodes.length,json_stable_ms:Date.now()-validSince};
           }
@@ -288,7 +288,7 @@
       await progress(bridgeRunId,'GEMINI_UI_PROMPT_CLICKED');
       const submission=await waitForSubmissionEstablished(envelope,beforeCount);
       await progress(bridgeRunId,'GEMINI_UI_PROMPT_SENT_CONFIRMED__'+(submission.response_started?'RESPONSE_STARTED':'COMPOSER_CLEARED'));
-      const result=await waitForModelResult(beforeCount);
+      const result=await waitForModelResult(bridgeRunId,beforeCount);
       await progress(bridgeRunId,'GEMINI_UI_RESPONSE_CAPTURED');
       await nativeSend({
         channel:CHANNEL,type:'PROVIDER_RESULT',bridge_run_id:bridgeRunId,ok:true,result_pack:result.parsed,
