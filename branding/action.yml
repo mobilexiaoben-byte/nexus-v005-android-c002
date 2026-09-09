@@ -12,19 +12,34 @@ runs:
       run: |
         set -euo pipefail
         python3 "$GITHUB_ACTION_PATH/ensure_launcher.py" "${{ inputs.root }}"
-    - name: Verify canonical launcher branding v3-safe50
+    - name: Verify canonical launcher branding v4-raster
       shell: bash
       run: |
         set -euo pipefail
         ROOT="${{ inputs.root }}"
         MANIFEST="$ROOT/app/src/main/AndroidManifest.xml"
-        FG="$ROOT/app/src/main/res/drawable/nexus_launcher_foreground.xml"
         grep -F 'android:icon="@mipmap/ic_launcher"' "$MANIFEST"
-        grep -F 'android:roundIcon="@mipmap/ic_launcher_round"' "$MANIFEST"
-        test -f "$FG"
-        grep -F 'M54,33.5' "$FG"
-        grep -F 'M41,61.5' "$FG"
-        ! grep -Fq 'android:scaleX=' "$FG"
-        test -f "$ROOT/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml"
-        test -f "$ROOT/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml"
-        echo 'NEXUS_LAUNCHER_CANONICAL_V3_SAFE50=PASS'
+        grep -F 'android:roundIcon="@mipmap/ic_launcher"' "$MANIFEST"
+        python3 - "$ROOT" <<'PY'
+        from pathlib import Path
+        import struct, sys
+        root = Path(sys.argv[1])
+        expected = {'mdpi':48,'hdpi':72,'xhdpi':96,'xxhdpi':144,'xxxhdpi':192}
+        sig = b'\x89PNG\r\n\x1a\n'
+        for density, size in expected.items():
+            p = root / 'app/src/main/res' / f'mipmap-{density}' / 'ic_launcher.png'
+            data = p.read_bytes()
+            assert data.startswith(sig), p
+            w, h = struct.unpack('>II', data[16:24])
+            assert (w, h) == (size, size), (p, w, h)
+        forbidden = [
+            'app/src/main/res/mipmap-anydpi/ic_launcher.xml',
+            'app/src/main/res/mipmap-anydpi/ic_launcher_round.xml',
+            'app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml',
+            'app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml',
+            'app/src/main/res/drawable/nexus_launcher_foreground.xml',
+        ]
+        for rel in forbidden:
+            assert not (root / rel).exists(), rel
+        print('NEXUS_LAUNCHER_CANONICAL_V4_RASTER_NO_ADAPTIVE=PASS')
+        PY
