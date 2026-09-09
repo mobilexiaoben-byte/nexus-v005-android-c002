@@ -1,0 +1,30 @@
+name: Canonical NEXUS Android Launcher Branding
+description: Apply and verify the canonical NEXUS launcher branding to a derived Android source tree.
+inputs:
+  root:
+    description: Absolute path to the Android source root.
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Apply canonical launcher branding
+      shell: bash
+      run: |
+        set -euo pipefail
+        python3 "$GITHUB_ACTION_PATH/ensure_launcher.py" "${{ inputs.root }}"
+    - name: Verify canonical launcher branding v3-safe50
+      shell: bash
+      run: |
+        set -euo pipefail
+        ROOT="${{ inputs.root }}"
+        MANIFEST="$ROOT/app/src/main/AndroidManifest.xml"
+        FG="$ROOT/app/src/main/res/drawable/nexus_launcher_foreground.xml"
+        grep -F 'android:icon="@mipmap/ic_launcher"' "$MANIFEST"
+        grep -F 'android:roundIcon="@mipmap/ic_launcher_round"' "$MANIFEST"
+        test -f "$FG"
+        grep -F 'M54,33.5' "$FG"
+        grep -F 'M41,61.5' "$FG"
+        ! grep -Fq 'android:scaleX=' "$FG"
+        test -f "$ROOT/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml"
+        test -f "$ROOT/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml"
+        echo 'NEXUS_LAUNCHER_CANONICAL_V3_SAFE50=PASS'
