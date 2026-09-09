@@ -78,27 +78,44 @@ jobs:
           providerresume021/run_validation.sh "$ROOT" "$REF" | tee /tmp/RESUME021_VALIDATION.txt
           grep -F 'PROVIDER_RUN_RESUME_SESSION_OWNERSHIP_021_STATIC_RESULT pass=37 fail=0' /tmp/RESUME021_VALIDATION.txt
 
-      - name: Verify canonical NEXUS launcher source
+      - name: Verify Android official launcher source
         shell: bash
         run: |
           set -euo pipefail
           ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
-          grep -F 'android:icon="@mipmap/ic_launcher"' "$ROOT/app/src/main/AndroidManifest.xml"
-          grep -F 'android:roundIcon="@mipmap/ic_launcher"' "$ROOT/app/src/main/AndroidManifest.xml"
+          MANIFEST="$ROOT/app/src/main/AndroidManifest.xml"
+          FG="$ROOT/app/src/main/res/drawable/nexus_launcher_foreground.xml"
+          ADAPT="$ROOT/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml"
+          ROUND="$ROOT/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml"
+
+          grep -F 'android:icon="@mipmap/ic_launcher"' "$MANIFEST"
+          grep -F 'android:roundIcon="@mipmap/ic_launcher_round"' "$MANIFEST"
+          test -f "$FG"
+          test -f "$ADAPT"
+          test -f "$ROUND"
+          grep -F 'android:width="108dp"' "$FG"
+          grep -F 'android:height="108dp"' "$FG"
+          grep -F 'android:viewportWidth="108"' "$FG"
+          grep -F 'android:viewportHeight="108"' "$FG"
+          grep -F 'M54,26.195' "$FG"
+          grep -F 'M34.976,67.171' "$FG"
+          grep -F 'M73.024,67.171' "$FG"
+          grep -F 'android:strokeWidth="4.39"' "$FG"
+          ! grep -Fq 'android:scaleX=' "$FG"
+          ! grep -Fq 'android:scaleY=' "$FG"
+
           python3 - "$ROOT" <<'PY'
           from pathlib import Path
           import struct, sys
           root = Path(sys.argv[1])
           expected = {'mdpi':48,'hdpi':72,'xhdpi':96,'xxhdpi':144,'xxxhdpi':192}
           for density, size in expected.items():
-              p = root / 'app/src/main/res' / f'mipmap-{density}' / 'ic_launcher.png'
-              data = p.read_bytes()
-              assert data.startswith(b'\x89PNG\r\n\x1a\n')
-              assert struct.unpack('>II', data[16:24]) == (size, size)
-          assert not (root / 'app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml').exists()
-          assert not (root / 'app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml').exists()
-          assert not (root / 'app/src/main/res/drawable/nexus_launcher_foreground.xml').exists()
-          print('NEXUS_LAUNCHER_CANONICAL_V4_RASTER_NO_ADAPTIVE=PASS')
+              for name in ('ic_launcher.png','ic_launcher_round.png'):
+                  p = root / 'app/src/main/res' / f'mipmap-{density}' / name
+                  data = p.read_bytes()
+                  assert data.startswith(b'\x89PNG\r\n\x1a\n')
+                  assert struct.unpack('>II', data[16:24]) == (size, size)
+          print('NEXUS_LAUNCHER_CANONICAL_V5_ANDROID_OFFICIAL_SAFE60=PASS')
           PY
 
       - name: Build APK
@@ -112,9 +129,12 @@ jobs:
           apk: ${{ github.workspace }}/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/build/outputs/apk/debug/app-debug.apk
           expected_package: nexus.android.c002.providerrunresume021
 
-      - name: Capture 021 badging evidence
+      - name: Capture 021 launcher evidence
         shell: bash
-        run: cp /tmp/NEXUS_CANONICAL_LAUNCHER_BADGING.txt /tmp/RESUME021_BADGING.txt
+        run: |
+          cp /tmp/NEXUS_CANONICAL_LAUNCHER_BADGING.txt /tmp/RESUME021_BADGING.txt
+          cp /tmp/NEXUS_CANONICAL_ADAPTIVE_XMLTREE.txt /tmp/RESUME021_ADAPTIVE_XMLTREE.txt
+          cp /tmp/NEXUS_CANONICAL_FOREGROUND_XMLTREE.txt /tmp/RESUME021_FOREGROUND_XMLTREE.txt
 
       - name: Prepare artifacts
         shell: bash
@@ -130,7 +150,9 @@ jobs:
           cp /tmp/RESUME021_CORE.txt .
           cp /tmp/RESUME021_VALIDATION.txt .
           cp /tmp/RESUME021_BADGING.txt .
-          sha256sum "$ROOT/app/src/main/AndroidManifest.xml" "$ROOT/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png" "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt" "$ROOT/app/src/main/assets/nexus/chatgpt_provider_c002.js" "$ROOT/app/src/main/assets/nexus/claude_provider_c002.js" "$ROOT/app/src/main/java/nexus/android/c002/web/OriginPolicy.kt" "$ROOT/app/src/main/java/nexus/android/c002/web/NexusWebBridge.kt" > RESUME021_SOURCE_SHA256.txt
+          cp /tmp/RESUME021_ADAPTIVE_XMLTREE.txt .
+          cp /tmp/RESUME021_FOREGROUND_XMLTREE.txt .
+          sha256sum "$ROOT/app/src/main/AndroidManifest.xml" "$ROOT/app/src/main/res/drawable/nexus_launcher_foreground.xml" "$ROOT/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml" "$ROOT/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png" "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt" "$ROOT/app/src/main/assets/nexus/chatgpt_provider_c002.js" "$ROOT/app/src/main/assets/nexus/claude_provider_c002.js" "$ROOT/app/src/main/java/nexus/android/c002/web/OriginPolicy.kt" "$ROOT/app/src/main/java/nexus/android/c002/web/NexusWebBridge.kt" > RESUME021_SOURCE_SHA256.txt
 
       - uses: actions/upload-artifact@v7
         with:
@@ -155,4 +177,6 @@ jobs:
             RESUME021_CORE.txt
             RESUME021_VALIDATION.txt
             RESUME021_BADGING.txt
+            RESUME021_ADAPTIVE_XMLTREE.txt
+            RESUME021_FOREGROUND_XMLTREE.txt
           if-no-files-found: error
