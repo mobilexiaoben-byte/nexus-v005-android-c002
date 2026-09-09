@@ -43,12 +43,11 @@ grep_ok provider_contract_preserved 'NEXUS_PROVIDER_COMPOSER_STATE_SYNC_018_OK' 
 grep_ok provider_ui_actuation_preserved 'PROVIDER_UI_ACTUATE' "$MAIN"
 grep_ok generation_gate_preserved 'CLAUDE_GENERATION_OBSERVED__' "$PROV"
 
-# onConfigurationChanged must not call loadUrl/reload/recreate a WebView.
 if python3 - "$MAIN" <<'PY'
 import sys
 s=open(sys.argv[1]).read()
 a=s.index('override fun onConfigurationChanged(newConfig: Configuration)')
-b=s.index('private fun handleBridgeMessage',a)
+b=s.index('private fun configureAuthPopup',a)
 block=s[a:b]
 assert 'loadUrl(' not in block
 assert '.reload(' not in block
@@ -56,7 +55,6 @@ assert 'WebView(' not in block
 PY
 then ok configuration_handler_no_provider_reload; else bad configuration_handler_no_provider_reload; fi
 
-# Persisted latch must contain state/timestamp only, never prompt/result/provider content.
 if python3 - "$MAIN" <<'PY'
 import sys
 s=open(sys.argv[1]).read()
