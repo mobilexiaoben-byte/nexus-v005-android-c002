@@ -1,0 +1,39 @@
+name: NEXUS V004 GEMINI ANDROID PREFLIGHT 001
+
+on:
+  push:
+    branches: [v004-gemini-android-preflight-001]
+    paths: ['.github/workflows/build-gemini-preflight001.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate frozen C002 and inspect Gemini enablement surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '26b5b157b487eda3a0c92198066d39beb5e6eb1149a3c4a705b49274c636eed4  V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip' | sha256sum -c -
+          mkdir base
+          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d base
+          ROOT="$GITHUB_WORKSPACE/base/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          cd "$ROOT"
+          chmod +x run_validation.sh run_core_tests.sh
+          ./run_validation.sh | tee /tmp/C002_VALIDATION.txt
+          grep -F 'RESULT pass=25 fail=0' /tmp/C002_VALIDATION.txt
+          grep -F 'STATIC_RESULT pass=10 fail=0' /tmp/C002_VALIDATION.txt
+          echo '=== GEMINI CORE SURFACE ==='
+          grep -R -n -E 'SelectedProvider|GEMINI|ADP-GOOGLE|ProviderPolicy|GOOGLE' app/src/main/java/nexus/android/c002/core || true
+          echo '=== NEXUS WEB BRIDGE ==='
+          sed -n '1,280p' app/src/main/java/nexus/android/c002/web/NexusWebBridge.kt
+          echo '=== ORIGIN POLICY ==='
+          sed -n '1,260p' app/src/main/java/nexus/android/c002/web/OriginPolicy.kt
+          echo '=== PROVIDER ASSETS ==='
+          find app/src/main/assets/nexus -maxdepth 1 -type f -print -exec sha256sum {} \;
