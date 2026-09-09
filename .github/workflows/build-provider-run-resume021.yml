@@ -83,14 +83,23 @@ jobs:
         run: |
           set -euo pipefail
           ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
-          FG="$ROOT/app/src/main/res/drawable/nexus_launcher_foreground.xml"
           grep -F 'android:icon="@mipmap/ic_launcher"' "$ROOT/app/src/main/AndroidManifest.xml"
-          grep -F 'android:roundIcon="@mipmap/ic_launcher_round"' "$ROOT/app/src/main/AndroidManifest.xml"
-          test -f "$FG"
-          grep -F 'M54,33.5' "$FG"
-          grep -F 'M41,61.5' "$FG"
-          ! grep -Fq 'android:scaleX=' "$FG"
-          echo 'NEXUS_LAUNCHER_CANONICAL_V3_SAFE50=PASS'
+          grep -F 'android:roundIcon="@mipmap/ic_launcher"' "$ROOT/app/src/main/AndroidManifest.xml"
+          python3 - "$ROOT" <<'PY'
+          from pathlib import Path
+          import struct, sys
+          root = Path(sys.argv[1])
+          expected = {'mdpi':48,'hdpi':72,'xhdpi':96,'xxhdpi':144,'xxxhdpi':192}
+          for density, size in expected.items():
+              p = root / 'app/src/main/res' / f'mipmap-{density}' / 'ic_launcher.png'
+              data = p.read_bytes()
+              assert data.startswith(b'\x89PNG\r\n\x1a\n')
+              assert struct.unpack('>II', data[16:24]) == (size, size)
+          assert not (root / 'app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml').exists()
+          assert not (root / 'app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml').exists()
+          assert not (root / 'app/src/main/res/drawable/nexus_launcher_foreground.xml').exists()
+          print('NEXUS_LAUNCHER_CANONICAL_V4_RASTER_NO_ADAPTIVE=PASS')
+          PY
 
       - name: Build APK
         working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
@@ -121,7 +130,7 @@ jobs:
           cp /tmp/RESUME021_CORE.txt .
           cp /tmp/RESUME021_VALIDATION.txt .
           cp /tmp/RESUME021_BADGING.txt .
-          sha256sum "$ROOT/app/src/main/AndroidManifest.xml" "$ROOT/app/src/main/res/drawable/nexus_launcher_foreground.xml" "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt" "$ROOT/app/src/main/assets/nexus/chatgpt_provider_c002.js" "$ROOT/app/src/main/assets/nexus/claude_provider_c002.js" "$ROOT/app/src/main/java/nexus/android/c002/web/OriginPolicy.kt" "$ROOT/app/src/main/java/nexus/android/c002/web/NexusWebBridge.kt" > RESUME021_SOURCE_SHA256.txt
+          sha256sum "$ROOT/app/src/main/AndroidManifest.xml" "$ROOT/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png" "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt" "$ROOT/app/src/main/assets/nexus/chatgpt_provider_c002.js" "$ROOT/app/src/main/assets/nexus/claude_provider_c002.js" "$ROOT/app/src/main/java/nexus/android/c002/web/OriginPolicy.kt" "$ROOT/app/src/main/java/nexus/android/c002/web/NexusWebBridge.kt" > RESUME021_SOURCE_SHA256.txt
 
       - uses: actions/upload-artifact@v7
         with:
