@@ -36,9 +36,10 @@ runs:
         grep -F 'android:viewportHeight="108"' "$FG"
 
         # Canonical SAFE60 geometry. Including strokes it stays within
-        # x=25.46..82.54 and y=24..84, inside the 66x66 safe zone.
+        # x=25.46..82.54 and y=24..84, inside the official 66x66 safe zone.
         grep -F 'M54,26.195' "$FG"
-        grep -F 'M27.659,74.488' "$FG"
+        grep -F 'M34.976,67.171' "$FG"
+        grep -F 'M73.024,67.171' "$FG"
         grep -F 'android:strokeWidth="4.39"' "$FG"
         ! grep -Fq 'android:scaleX=' "$FG"
         ! grep -Fq 'android:scaleY=' "$FG"
