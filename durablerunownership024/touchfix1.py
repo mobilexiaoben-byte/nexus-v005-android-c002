@@ -9,6 +9,20 @@ def one(text: str, old: str, new: str, label: str) -> str:
     assert count == 1, f"{label}: expected 1 match, found {count}"
     return text.replace(old, new, 1)
 
+# Keep the validated 024 transport logic, but give TOUCHFIX1 an independent app identity
+# so the baseline 024 installation and its durable evidence can remain untouched on device.
+gradle = root / 'app/build.gradle.kts'
+g = gradle.read_text()
+g = one(g, 'applicationId = "nexus.android.c002.durablerunownership024"', 'applicationId = "nexus.android.c002.durablerunownership024touchfix1"', 'touchfix application id')
+g = one(g, 'versionCode = 25', 'versionCode = 26', 'touchfix version code')
+g = one(g, 'versionName = "0.0.25-c002-durable-run-ownership024"', 'versionName = "0.0.26-c002-durable-run-ownership024-touchfix1"', 'touchfix version name')
+gradle.write_text(g)
+
+manifest = root / 'app/src/main/AndroidManifest.xml'
+m = manifest.read_text()
+m = one(m, 'android:label="NEXUS C002 DURABLE RUN OWNERSHIP 024"', 'android:label="NEXUS C002 DURABLE 024 TOUCHFIX1"', 'touchfix label')
+manifest.write_text(m)
+
 layout = root / 'app/src/main/res/layout/activity_main.xml'
 x = layout.read_text()
 x = one(x, 'android:padding="8dp"\n        android:maxLines="2"', 'android:padding="4dp"\n        android:maxLines="1"', 'compact status layout')
