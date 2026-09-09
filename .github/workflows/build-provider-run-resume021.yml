@@ -46,11 +46,11 @@ jobs:
           claudesubmissionproof020/run_validation.sh "$GITHUB_WORKSPACE/reference020/V005_ANDROID_CHROMIUM_WEBVIEW_C002" "$GITHUB_WORKSPACE/reference019/V005_ANDROID_CHROMIUM_WEBVIEW_C002" 2>/dev/null || true
           node --check "$GITHUB_WORKSPACE/reference020/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/src/main/assets/nexus/claude_provider_c002.js"
 
-      - name: Derive 021
+      - name: Derive 021 with branding postcondition
         shell: bash
         run: |
           set -euo pipefail
-          python3 providerresume021/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          python3 providerresume021/derive_canonical.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
 
       - name: Apply canonical NEXUS launcher branding
         uses: mobilexiaoben-byte/nexus-v005-android-c002/branding@main
@@ -97,19 +97,15 @@ jobs:
         shell: bash
         run: gradle :app:assembleDebug --stacktrace --no-daemon
 
-      - name: Verify APK
+      - name: Verify canonical NEXUS launcher in built APK
+        uses: mobilexiaoben-byte/nexus-v005-android-c002/branding/verify-apk@main
+        with:
+          apk: ${{ github.workspace }}/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/build/outputs/apk/debug/app-debug.apk
+          expected_package: nexus.android.c002.providerrunresume021
+
+      - name: Capture 021 badging evidence
         shell: bash
-        run: |
-          set -euo pipefail
-          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
-          APK="$ROOT/app/build/outputs/apk/debug/app-debug.apk"
-          AAPT="$ANDROID_HOME/build-tools/36.0.0/aapt"
-          test -f "$APK"
-          "$AAPT" dump badging "$APK" | tee /tmp/RESUME021_BADGING.txt
-          grep -F "package: name='nexus.android.c002.providerrunresume021'" /tmp/RESUME021_BADGING.txt
-          grep -E "application:.*icon='res/mipmap" /tmp/RESUME021_BADGING.txt
-          unzip -l "$APK" | grep -F 'res/drawable/nexus_launcher_foreground.xml'
-          unzip -l "$APK" | grep -F 'res/mipmap-anydpi-v26/ic_launcher.xml'
+        run: cp /tmp/NEXUS_CANONICAL_LAUNCHER_BADGING.txt /tmp/RESUME021_BADGING.txt
 
       - name: Prepare artifacts
         shell: bash
