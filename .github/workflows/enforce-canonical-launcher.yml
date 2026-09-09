@@ -1,0 +1,70 @@
+name: Enforce Canonical NEXUS Launcher Contract
+
+on:
+  push:
+    branches:
+      - main
+      - 'v005-c002-*'
+    paths:
+      - '.github/workflows/**'
+      - 'branding/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  enforce:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
+      - name: Enforce canonical launcher on active APK workflows
+        shell: bash
+        env:
+          CURRENT_BRANCH: ${{ github.ref_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import os, re, subprocess, sys
+
+          root = Path('.github/workflows')
+          branch = os.environ.get('CURRENT_BRANCH', '')
+          before = os.environ.get('BEFORE_SHA', '')
+          changed = set()
+          if before and before != '0' * 40:
+              p = subprocess.run(['git','diff','--name-only',before,'HEAD','--','.github/workflows'], text=True, capture_output=True)
+              if p.returncode == 0:
+                  changed = {x.strip() for x in p.stdout.splitlines() if x.strip()}
+
+          failures = []
+          checked = []
+          build_re = re.compile(r'\b(?:gradle|\./gradlew)\b[^\n]*(?:assemble|bundle)(?:Debug|Release)?', re.I)
+          for path in sorted(list(root.glob('*.yml')) + list(root.glob('*.yaml'))):
+              text = path.read_text(encoding='utf-8')
+              if not build_re.search(text):
+                  continue
+              active = branch == 'main' or branch in text or str(path) in changed
+              if not active:
+                  continue
+              checked.append(str(path))
+              if 'uses: mobilexiaoben-byte/nexus-v005-android-c002/branding@main' not in text:
+                  failures.append(f'{path}: missing canonical branding@main action')
+              if 'uses: mobilexiaoben-byte/nexus-v005-android-c002/branding/verify-apk@main' not in text:
+                  failures.append(f'{path}: missing canonical verify-apk@main action')
+
+          if not checked:
+              print('No active APK build workflow required checking.')
+          else:
+              print('Checked active APK workflows:')
+              for x in checked: print(' -', x)
+          if failures:
+              print('\nCANONICAL LAUNCHER CONTRACT: FAIL', file=sys.stderr)
+              for x in failures: print(' -', x, file=sys.stderr)
+              raise SystemExit(1)
+          print('NEXUS_CANONICAL_LAUNCHER_WORKFLOW_CONTRACT=PASS')
+          PY
