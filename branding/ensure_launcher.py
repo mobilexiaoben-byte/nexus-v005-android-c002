@@ -20,23 +20,31 @@ else:
     m = m.replace('<application', '<application android:roundIcon="@mipmap/ic_launcher_round"', 1)
 manifest.write_text(m, encoding='utf-8')
 
-legacy = '''<vector xmlns:android="http://schemas.android.com/apk/res/android"
+# Samsung/Android launchers apply aggressive masks to adaptive icons. Keep the
+# complete NEXUS symbol inside a conservative safe zone by scaling it around
+# the centre of the 108x108 viewport. 0.72 preserves the full mark with margin.
+symbol = '''    <group
+        android:pivotX="54"
+        android:pivotY="54"
+        android:scaleX="0.72"
+        android:scaleY="0.72">
+        <path android:fillColor="@android:color/transparent" android:strokeColor="#000000" android:strokeWidth="4" android:strokeLineCap="round" android:pathData="M54,35L54,43 M46,65L35,72 M62,65L73,72"/>
+        <path android:fillColor="@android:color/transparent" android:strokeColor="#000000" android:strokeWidth="4" android:pathData="M54,13 C60.075,13 65,17.925 65,24 C65,30.075 60.075,35 54,35 C47.925,35 43,30.075 43,24 C43,17.925 47.925,13 54,13 Z"/>
+        <path android:fillColor="@android:color/transparent" android:strokeColor="#FF0000" android:strokeWidth="4" android:pathData="M54,43 C60.627,43 66,48.373 66,55 C66,61.627 60.627,67 54,67 C47.373,67 42,61.627 42,55 C42,48.373 47.373,43 54,43 Z"/>
+        <path android:fillColor="@android:color/transparent" android:strokeColor="#000000" android:strokeWidth="4" android:pathData="M28,69 C33.523,69 38,73.477 38,79 C38,84.523 33.523,89 28,89 C22.477,89 18,84.523 18,79 C18,73.477 22.477,69 28,69 Z M80,69 C85.523,69 90,73.477 90,79 C90,84.523 85.523,89 80,89 C74.477,89 70,84.523 70,79 C70,73.477 74.477,69 80,69 Z"/>
+    </group>'''
+
+legacy = f'''<vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp"
     android:viewportWidth="108" android:viewportHeight="108">
     <path android:fillColor="#FFFFFF" android:pathData="M0,0h108v108h-108z"/>
-    <path android:fillColor="@android:color/transparent" android:strokeColor="#000000" android:strokeWidth="4" android:strokeLineCap="round" android:pathData="M54,35L54,43 M46,65L35,72 M62,65L73,72"/>
-    <path android:fillColor="@android:color/transparent" android:strokeColor="#000000" android:strokeWidth="4" android:pathData="M54,13 C60.075,13 65,17.925 65,24 C65,30.075 60.075,35 54,35 C47.925,35 43,30.075 43,24 C43,17.925 47.925,13 54,13 Z"/>
-    <path android:fillColor="@android:color/transparent" android:strokeColor="#FF0000" android:strokeWidth="4" android:pathData="M54,43 C60.627,43 66,48.373 66,55 C66,61.627 60.627,67 54,67 C47.373,67 42,61.627 42,55 C42,48.373 47.373,43 54,43 Z"/>
-    <path android:fillColor="@android:color/transparent" android:strokeColor="#000000" android:strokeWidth="4" android:pathData="M28,69 C33.523,69 38,73.477 38,79 C38,84.523 33.523,89 28,89 C22.477,89 18,84.523 18,79 C18,73.477 22.477,69 28,69 Z M80,69 C85.523,69 90,73.477 90,79 C90,84.523 85.523,89 80,89 C74.477,89 70,84.523 70,79 C70,73.477 74.477,69 80,69 Z"/>
+{symbol}
 </vector>\n'''
 
-foreground = '''<vector xmlns:android="http://schemas.android.com/apk/res/android"
+foreground = f'''<vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp"
     android:viewportWidth="108" android:viewportHeight="108">
-    <path android:fillColor="@android:color/transparent" android:strokeColor="#000000" android:strokeWidth="4" android:strokeLineCap="round" android:pathData="M54,35L54,43 M46,65L35,72 M62,65L73,72"/>
-    <path android:fillColor="@android:color/transparent" android:strokeColor="#000000" android:strokeWidth="4" android:pathData="M54,13 C60.075,13 65,17.925 65,24 C65,30.075 60.075,35 54,35 C47.925,35 43,30.075 43,24 C43,17.925 47.925,13 54,13 Z"/>
-    <path android:fillColor="@android:color/transparent" android:strokeColor="#FF0000" android:strokeWidth="4" android:pathData="M54,43 C60.627,43 66,48.373 66,55 C66,61.627 60.627,67 54,67 C47.373,67 42,61.627 42,55 C42,48.373 47.373,43 54,43 Z"/>
-    <path android:fillColor="@android:color/transparent" android:strokeColor="#000000" android:strokeWidth="4" android:pathData="M28,69 C33.523,69 38,73.477 38,79 C38,84.523 33.523,89 28,89 C22.477,89 18,84.523 18,79 C18,73.477 22.477,69 28,69 Z M80,69 C85.523,69 90,73.477 90,79 C90,84.523 85.523,89 80,89 C74.477,89 70,84.523 70,79 C70,73.477 74.477,69 80,69 Z"/>
+{symbol}
 </vector>\n'''
 
 adaptive = '''<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
@@ -60,4 +68,4 @@ for path, text in files.items():
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding='utf-8')
 
-print('NEXUS launcher branding source: PASS')
+print('NEXUS launcher branding source: PASS safe_scale=0.72')
