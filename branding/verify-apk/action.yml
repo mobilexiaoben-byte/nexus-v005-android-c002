@@ -1,5 +1,5 @@
 name: Verify Canonical NEXUS Android Launcher APK
-description: Fail unless the built APK contains and declares the canonical NEXUS launcher resources.
+description: Fail unless the built APK contains and declares the canonical raster NEXUS launcher resources without adaptive-icon masking.
 inputs:
   apk:
     description: Absolute path to the APK to verify.
@@ -11,7 +11,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Verify canonical launcher in APK
+    - name: Verify canonical raster launcher in APK
       shell: bash
       run: |
         set -euo pipefail
@@ -21,12 +21,15 @@ runs:
         AAPT="${ANDROID_HOME}/build-tools/36.0.0/aapt"
         test -x "$AAPT"
         "$AAPT" dump badging "$APK" | tee /tmp/NEXUS_CANONICAL_LAUNCHER_BADGING.txt
-        grep -E "application:.*icon='res/mipmap" /tmp/NEXUS_CANONICAL_LAUNCHER_BADGING.txt
+        grep -E "application:.*icon='res/mipmap[^']*/ic_launcher.png'" /tmp/NEXUS_CANONICAL_LAUNCHER_BADGING.txt
         if [ -n "$EXPECTED_PACKAGE" ]; then
           grep -F "package: name='$EXPECTED_PACKAGE'" /tmp/NEXUS_CANONICAL_LAUNCHER_BADGING.txt
         fi
-        unzip -l "$APK" | grep -F 'res/drawable/nexus_launcher_foreground.xml'
-        unzip -l "$APK" | grep -F 'res/mipmap-anydpi-v26/ic_launcher.xml'
-        unzip -l "$APK" | grep -F 'res/mipmap-anydpi-v26/ic_launcher_round.xml'
+        LIST="$(unzip -Z1 "$APK")"
+        for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+          echo "$LIST" | grep -Eq "^res/mipmap-${density}(-v4)?/ic_launcher.png$"
+        done
+        ! echo "$LIST" | grep -Eq '^res/mipmap-anydpi-v26/ic_launcher(_round)?\.xml$'
+        ! echo "$LIST" | grep -Fq 'res/drawable/nexus_launcher_foreground.xml'
         sha256sum "$APK"
-        echo 'NEXUS_LAUNCHER_APK_CANONICAL_V3_SAFE50=PASS'
+        echo 'NEXUS_LAUNCHER_APK_CANONICAL_V4_RASTER_NO_ADAPTIVE=PASS'
