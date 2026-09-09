@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+ROOT="${1:?root required}"
+pass=0; fail=0
+check(){ local n="$1"; shift; if "$@"; then echo "PASS $n"; pass=$((pass+1)); else echo "FAIL $n"; fail=$((fail+1)); fi; }
+MAIN="$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt"
+LAYOUT="$ROOT/app/src/main/res/layout/activity_main.xml"
+CLAUDE="$ROOT/app/src/main/assets/nexus/claude_provider_c002.js"
+CHATGPT="$ROOT/app/src/main/assets/nexus/chatgpt_provider_c002.js"
+ORIGIN="$ROOT/app/src/main/java/nexus/android/c002/web/OriginPolicy.kt"
+BRIDGE="$ROOT/app/src/main/java/nexus/android/c002/web/NexusWebBridge.kt"
+check status_compact_1 grep -Fq 'android:maxLines="1"' "$LAYOUT"
+check status_not_focusable grep -Fq 'android:focusable="false"' "$LAYOUT"
+check evidence_compact_2 grep -Fq 'android:maxLines="2"' "$LAYOUT"
+check evidence_ellipsized grep -Fq 'android:ellipsize="end"' "$LAYOUT"
+check evidence_dynamic_lines grep -Fq 'runEvidence.maxLines = if (diagnosticExpanded) EXPANDED_EVIDENCE_LINES else COMPACT_EVIDENCE_LINES' "$MAIN"
+check evidence_toggle grep -Fq 'runEvidence.setOnClickListener(toggleDiagnostics)' "$MAIN"
+check webview_focusable grep -Fq 'webView.isFocusableInTouchMode = true' "$MAIN"
+check webview_touch_focus grep -Fq 'webView.setOnTouchListener { view, _ ->' "$MAIN"
+check touch_passthrough grep -Fq '            false' "$MAIN"
+check compact_status_constant grep -Fq 'const val COMPACT_STATUS_LINES = 1' "$MAIN"
+check compact_evidence_constant grep -Fq 'const val COMPACT_EVIDENCE_LINES = 2' "$MAIN"
+check expanded_evidence_constant grep -Fq 'const val EXPANDED_EVIDENCE_LINES = 7' "$MAIN"
+check evidence024_preserved grep -Fq 'EVIDENCE 024 | BOOT=' "$MAIN"
+check same_package grep -Fq 'applicationId = "nexus.android.c002.durablerunownership024"' "$ROOT/app/build.gradle.kts"
+check claude_js_syntax node --check "$CLAUDE"
+check chatgpt_js_syntax node --check "$CHATGPT"
+check origin_present test -s "$ORIGIN"
+check bridge_present test -s "$BRIDGE"
+echo "DURABLE_RUN_OWNERSHIP_024_TOUCHFIX1_STATIC_RESULT pass=$pass fail=$fail"
+test "$fail" -eq 0
