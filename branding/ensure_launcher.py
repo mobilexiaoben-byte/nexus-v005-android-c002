@@ -20,19 +20,14 @@ else:
     m = m.replace('<application', '<application android:roundIcon="@mipmap/ic_launcher_round"', 1)
 manifest.write_text(m, encoding='utf-8')
 
-# Samsung/Android launchers apply aggressive masks to adaptive icons. Keep the
-# complete NEXUS symbol inside a conservative safe zone by scaling it around
-# the centre of the 108x108 viewport. 0.72 preserves the full mark with margin.
-symbol = '''    <group
-        android:pivotX="54"
-        android:pivotY="54"
-        android:scaleX="0.72"
-        android:scaleY="0.72">
-        <path android:fillColor="@android:color/transparent" android:strokeColor="#000000" android:strokeWidth="4" android:strokeLineCap="round" android:pathData="M54,35L54,43 M46,65L35,72 M62,65L73,72"/>
-        <path android:fillColor="@android:color/transparent" android:strokeColor="#000000" android:strokeWidth="4" android:pathData="M54,13 C60.075,13 65,17.925 65,24 C65,30.075 60.075,35 54,35 C47.925,35 43,30.075 43,24 C43,17.925 47.925,13 54,13 Z"/>
-        <path android:fillColor="@android:color/transparent" android:strokeColor="#FF0000" android:strokeWidth="4" android:pathData="M54,43 C60.627,43 66,48.373 66,55 C66,61.627 60.627,67 54,67 C47.373,67 42,61.627 42,55 C42,48.373 47.373,43 54,43 Z"/>
-        <path android:fillColor="@android:color/transparent" android:strokeColor="#000000" android:strokeWidth="4" android:pathData="M28,69 C33.523,69 38,73.477 38,79 C38,84.523 33.523,89 28,89 C22.477,89 18,84.523 18,79 C18,73.477 22.477,69 28,69 Z M80,69 C85.523,69 90,73.477 90,79 C90,84.523 85.523,89 80,89 C74.477,89 70,84.523 70,79 C70,73.477 74.477,69 80,69 Z"/>
-    </group>'''
+# Keep the complete NEXUS mark inside a conservative adaptive-icon safe zone.
+# Coordinates are compacted directly instead of relying on VectorDrawable group
+# scaling, so launcher-specific rendering cannot ignore or reinterpret the scale.
+# The mark occupies roughly x=36..72 and y=33.5..71.5 in a 108x108 viewport.
+symbol = '''    <path android:fillColor="@android:color/transparent" android:strokeColor="#000000" android:strokeWidth="3" android:strokeLineCap="round" android:pathData="M54,44.5L54,48.5 M50,59.5L44.5,63 M58,59.5L63.5,63"/>
+    <path android:fillColor="@android:color/transparent" android:strokeColor="#000000" android:strokeWidth="3" android:pathData="M54,33.5 C57.0375,33.5 59.5,35.9625 59.5,39 C59.5,42.0375 57.0375,44.5 54,44.5 C50.9625,44.5 48.5,42.0375 48.5,39 C48.5,35.9625 50.9625,33.5 54,33.5 Z"/>
+    <path android:fillColor="@android:color/transparent" android:strokeColor="#FF0000" android:strokeWidth="3" android:pathData="M54,48.5 C57.3135,48.5 60,51.1865 60,54.5 C60,57.8135 57.3135,60.5 54,60.5 C50.6865,60.5 48,57.8135 48,54.5 C48,51.1865 50.6865,48.5 54,48.5 Z"/>
+    <path android:fillColor="@android:color/transparent" android:strokeColor="#000000" android:strokeWidth="3" android:pathData="M41,61.5 C43.7615,61.5 46,63.7385 46,66.5 C46,69.2615 43.7615,71.5 41,71.5 C38.2385,71.5 36,69.2615 36,66.5 C36,63.7385 38.2385,61.5 41,61.5 Z M67,61.5 C69.7615,61.5 72,63.7385 72,66.5 C72,69.2615 69.7615,71.5 67,71.5 C64.2385,71.5 62,69.2615 62,66.5 C62,63.7385 64.2385,61.5 67,61.5 Z"/>'''
 
 legacy = f'''<vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp" android:height="108dp"
@@ -68,4 +63,4 @@ for path, text in files.items():
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding='utf-8')
 
-print('NEXUS launcher branding source: PASS safe_scale=0.72')
+print('NEXUS launcher branding source: PASS direct_safe_zone=0.50')
