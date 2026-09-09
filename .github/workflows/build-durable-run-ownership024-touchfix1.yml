@@ -83,6 +83,11 @@ jobs:
           ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
           python3 durablerunownership024/touchfix1.py "$ROOT"
 
+      - name: Apply canonical NEXUS launcher branding
+        uses: mobilexiaoben-byte/nexus-v005-android-c002/branding@main
+        with:
+          root: ${{ github.workspace }}/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+
       - name: Validate TOUCHFIX1
         shell: bash
         run: |
@@ -102,11 +107,19 @@ jobs:
           grep -F 'android:icon="@mipmap/ic_launcher"' "$ROOT/app/src/main/AndroidManifest.xml"
           grep -F 'android:roundIcon="@mipmap/ic_launcher_round"' "$ROOT/app/src/main/AndroidManifest.xml"
           test -f "$ROOT/app/src/main/res/drawable/nexus_launcher_foreground.xml"
+          test -f "$ROOT/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml"
+          test -f "$ROOT/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml"
 
       - name: Build APK
         working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
         shell: bash
         run: gradle :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Verify canonical NEXUS launcher in built APK
+        uses: mobilexiaoben-byte/nexus-v005-android-c002/branding/verify-apk@main
+        with:
+          apk: ${{ github.workspace }}/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/build/outputs/apk/debug/app-debug.apk
+          expected_package: nexus.android.c002.durablerunownership024touchfix1
 
       - name: Verify APK
         shell: bash
