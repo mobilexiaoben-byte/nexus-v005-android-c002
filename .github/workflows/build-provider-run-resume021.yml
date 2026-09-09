@@ -52,6 +52,11 @@ jobs:
           set -euo pipefail
           python3 providerresume021/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
 
+      - name: Apply canonical NEXUS launcher branding
+        uses: mobilexiaoben-byte/nexus-v005-android-c002/branding@main
+        with:
+          root: ${{ github.workspace }}/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -73,14 +78,19 @@ jobs:
           providerresume021/run_validation.sh "$ROOT" "$REF" | tee /tmp/RESUME021_VALIDATION.txt
           grep -F 'PROVIDER_RUN_RESUME_SESSION_OWNERSHIP_021_STATIC_RESULT pass=37 fail=0' /tmp/RESUME021_VALIDATION.txt
 
-      - name: Verify NEXUS launcher source
+      - name: Verify canonical NEXUS launcher source
         shell: bash
         run: |
           set -euo pipefail
           ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          FG="$ROOT/app/src/main/res/drawable/nexus_launcher_foreground.xml"
           grep -F 'android:icon="@mipmap/ic_launcher"' "$ROOT/app/src/main/AndroidManifest.xml"
           grep -F 'android:roundIcon="@mipmap/ic_launcher_round"' "$ROOT/app/src/main/AndroidManifest.xml"
-          test -f "$ROOT/app/src/main/res/drawable/nexus_launcher_foreground.xml"
+          test -f "$FG"
+          grep -F 'M54,33.5' "$FG"
+          grep -F 'M41,61.5' "$FG"
+          ! grep -Fq 'android:scaleX=' "$FG"
+          echo 'NEXUS_LAUNCHER_CANONICAL_V3_SAFE50=PASS'
 
       - name: Build APK
         working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
@@ -98,6 +108,8 @@ jobs:
           "$AAPT" dump badging "$APK" | tee /tmp/RESUME021_BADGING.txt
           grep -F "package: name='nexus.android.c002.providerrunresume021'" /tmp/RESUME021_BADGING.txt
           grep -E "application:.*icon='res/mipmap" /tmp/RESUME021_BADGING.txt
+          unzip -l "$APK" | grep -F 'res/drawable/nexus_launcher_foreground.xml'
+          unzip -l "$APK" | grep -F 'res/mipmap-anydpi-v26/ic_launcher.xml'
 
       - name: Prepare artifacts
         shell: bash
@@ -113,7 +125,7 @@ jobs:
           cp /tmp/RESUME021_CORE.txt .
           cp /tmp/RESUME021_VALIDATION.txt .
           cp /tmp/RESUME021_BADGING.txt .
-          sha256sum "$ROOT/app/src/main/AndroidManifest.xml" "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt" "$ROOT/app/src/main/assets/nexus/chatgpt_provider_c002.js" "$ROOT/app/src/main/assets/nexus/claude_provider_c002.js" "$ROOT/app/src/main/java/nexus/android/c002/web/OriginPolicy.kt" "$ROOT/app/src/main/java/nexus/android/c002/web/NexusWebBridge.kt" > RESUME021_SOURCE_SHA256.txt
+          sha256sum "$ROOT/app/src/main/AndroidManifest.xml" "$ROOT/app/src/main/res/drawable/nexus_launcher_foreground.xml" "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt" "$ROOT/app/src/main/assets/nexus/chatgpt_provider_c002.js" "$ROOT/app/src/main/assets/nexus/claude_provider_c002.js" "$ROOT/app/src/main/java/nexus/android/c002/web/OriginPolicy.kt" "$ROOT/app/src/main/java/nexus/android/c002/web/NexusWebBridge.kt" > RESUME021_SOURCE_SHA256.txt
 
       - uses: actions/upload-artifact@v7
         with:
