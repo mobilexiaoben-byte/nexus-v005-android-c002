@@ -3,12 +3,13 @@ import re, subprocess, sys
 repo=Path(sys.argv[1]).resolve(); root=Path(sys.argv[2]).resolve()
 subprocess.run(['python3',str(repo/'providerresume021'/'derive.py'),str(repo),str(root)],check=True)
 
-# 022 keeps the SAME Android applicationId and SAME WebView profile as 021 so
-# provider auth/session and run metadata survive an update. Only version/label change.
+# 022 uses its own applicationId to avoid debug-signature update conflicts between
+# independent GitHub runners. The resume proof is performed entirely inside 022:
+# authenticate once if needed, then close/reopen the same installed APK.
 p=root/'app/build.gradle.kts'; g=p.read_text()
+g=g.replace('applicationId = "nexus.android.c002.providerrunresume021"','applicationId = "nexus.android.c002.providerresumediag022"')
 g=g.replace('versionCode = 22','versionCode = 23')
 g,n=re.subn(r'versionName\s*=\s*"0\.0\.22-c002-provider-run-resume021"','versionName = "0.0.23-c002-provider-run-resume-diagnostic022"',g,count=1); assert n==1
-assert 'applicationId = "nexus.android.c002.providerrunresume021"' in g
 p.write_text(g)
 
 p=root/'app/src/main/AndroidManifest.xml'; m=p.read_text()
