@@ -1,0 +1,124 @@
+name: NEXUS V007 - Android Clean Device E2E 001 FAILCLOSED1
+
+on:
+  push:
+    branches: [v007-android-clean-device-e2e-001-failclosed1]
+    paths: ['.github/workflows/build-v007-clean-device-e2e001-failclosed1.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate frozen C002 baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '26b5b157b487eda3a0c92198066d39beb5e6eb1149a3c4a705b49274c636eed4  V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip' | sha256sum -c -
+          mkdir base
+          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d base
+          cd base/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+          chmod +x run_validation.sh run_core_tests.sh
+          ./run_validation.sh | tee /tmp/C002_VALIDATION.txt
+          grep -F 'RESULT pass=25 fail=0' /tmp/C002_VALIDATION.txt
+          grep -F 'STATIC_RESULT pass=10 fail=0' /tmp/C002_VALIDATION.txt
+
+      - name: Derive V007 FAILCLOSED1 candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 v007failclosed1/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          ROOT='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002'
+          sha256sum "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt" \
+                    "$ROOT/app/src/main/assets/nexus/chatgpt_provider_c002.js" \
+                    "$ROOT/app/src/main/java/nexus/android/c002/web/OriginPolicy.kt" \
+                    "$ROOT/app/src/main/java/nexus/android/c002/web/NexusWebBridge.kt" \
+                    > /tmp/V007_FAILCLOSED1_SOURCE_SHA256.txt
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Validate core and FAILCLOSED1
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002'
+          chmod +x v007failclosed1/run_validation.sh
+          "$ROOT/run_core_tests.sh" | tee /tmp/V007_FAILCLOSED1_CORE.txt
+          grep -F 'RESULT pass=25 fail=0' /tmp/V007_FAILCLOSED1_CORE.txt
+          v007failclosed1/run_validation.sh "$ROOT" | tee /tmp/V007_FAILCLOSED1_VALIDATION.txt
+          grep -E '^V007_FAILCLOSED1_STATIC_RESULT pass=[0-9]+ fail=0$' /tmp/V007_FAILCLOSED1_VALIDATION.txt
+
+      - name: Apply NEXUS launcher branding
+        uses: mobilexiaoben-byte/nexus-v005-android-c002/branding@main
+        with:
+          root: ${{ github.workspace }}/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+
+      - name: Build APK
+        working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+        shell: bash
+        run: gradle :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Validate APK badging
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/build/outputs/apk/debug/app-debug.apk'
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
+          "$AAPT" dump badging "$APK" | tee /tmp/V007_FAILCLOSED1_BADGING.txt
+          grep -F "package: name='nexus.android.v007.cleandevicee2e001.failclosed1'" /tmp/V007_FAILCLOSED1_BADGING.txt
+          grep -F "application-label:'NEXUS V007 FAIL-CLOSED 1'" /tmp/V007_FAILCLOSED1_BADGING.txt
+
+      - name: Prepare artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK_OUT='NEXUS-V007-ANDROID-CLEAN-DEVICE-E2E-001-FAILCLOSED1-debug.apk'
+          cp work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/build/outputs/apk/debug/app-debug.apk "$APK_OUT"
+          sha256sum "$APK_OUT" > "$APK_OUT.sha256"
+          cp /tmp/C002_VALIDATION.txt .
+          cp /tmp/V007_FAILCLOSED1_CORE.txt .
+          cp /tmp/V007_FAILCLOSED1_VALIDATION.txt .
+          cp /tmp/V007_FAILCLOSED1_SOURCE_SHA256.txt .
+          cp /tmp/V007_FAILCLOSED1_BADGING.txt .
+          (cd work && zip -qr ../V007_ANDROID_CLEAN_DEVICE_E2E_001_FAILCLOSED1_SOURCE.zip V005_ANDROID_CHROMIUM_WEBVIEW_C002)
+          sha256sum V007_ANDROID_CLEAN_DEVICE_E2E_001_FAILCLOSED1_SOURCE.zip > V007_ANDROID_CLEAN_DEVICE_E2E_001_FAILCLOSED1_SOURCE.zip.sha256
+          cat "$APK_OUT.sha256"
+          cat V007_ANDROID_CLEAN_DEVICE_E2E_001_FAILCLOSED1_SOURCE.zip.sha256
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-V007-ANDROID-CLEAN-DEVICE-E2E-001-FAILCLOSED1-debug
+          path: NEXUS-V007-ANDROID-CLEAN-DEVICE-E2E-001-FAILCLOSED1-debug.apk
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-V007-ANDROID-CLEAN-DEVICE-E2E-001-FAILCLOSED1-source
+          path: V007_ANDROID_CLEAN_DEVICE_E2E_001_FAILCLOSED1_SOURCE.zip
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-V007-ANDROID-CLEAN-DEVICE-E2E-001-FAILCLOSED1-evidence
+          path: |
+            NEXUS-V007-ANDROID-CLEAN-DEVICE-E2E-001-FAILCLOSED1-debug.apk.sha256
+            V007_ANDROID_CLEAN_DEVICE_E2E_001_FAILCLOSED1_SOURCE.zip.sha256
+            C002_VALIDATION.txt
+            V007_FAILCLOSED1_CORE.txt
+            V007_FAILCLOSED1_VALIDATION.txt
+            V007_FAILCLOSED1_SOURCE_SHA256.txt
+            V007_FAILCLOSED1_BADGING.txt
+          if-no-files-found: error
