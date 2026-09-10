@@ -50,18 +50,25 @@ jobs:
           profile: pixel_2
           disable-animations: true
           script: |
-            gradle -p "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002" :app:connectedDebugAndroidTest --stacktrace --no-daemon > "$GITHUB_WORKSPACE/U004_MENU_INSTRUMENTATION.txt" 2>&1; rc=$?; cat "$GITHUB_WORKSPACE/U004_MENU_INSTRUMENTATION.txt"; exit $rc
+            gradle -p "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002" :app:connectedDebugAndroidTest --stacktrace --no-daemon > "$GITHUB_WORKSPACE/U004_MENU_INSTRUMENTATION.txt" 2>&1; rc=$?; echo "$rc" > "$GITHUB_WORKSPACE/U004_MENU_RC.txt"; cat "$GITHUB_WORKSPACE/U004_MENU_INSTRUMENTATION.txt"; find "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/build/outputs/androidTest-results" -type f -name '*.xml' -print -exec cat {} \; 2>/dev/null || true; exit 0
+
+      - name: Persist instrumentation evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-U004-SHELL004-menu-instrumentation-evidence
+          path: |
+            U004_MENU_INSTRUMENTATION.txt
+            U004_MENU_RC.txt
+            work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/build/outputs/androidTest-results/**
+            work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/build/reports/androidTests/connected/debug/**
+          if-no-files-found: warn
 
       - name: Assert menu flow PASS
         shell: bash
         run: |
           set -euo pipefail
+          test "$(cat U004_MENU_RC.txt)" = "0"
           grep -F 'BUILD SUCCESSFUL' U004_MENU_INSTRUMENTATION.txt
           ! grep -E 'FAILURES!!!|FAILED|There were failing tests' U004_MENU_INSTRUMENTATION.txt
           echo 'U004_MENU_FLOW_PASS: provider_response -> nexus_result -> technical_details'
-
-      - uses: actions/upload-artifact@v7
-        with:
-          name: NEXUS-U004-SHELL004-menu-instrumentation-evidence
-          path: U004_MENU_INSTRUMENTATION.txt
-          if-no-files-found: error
