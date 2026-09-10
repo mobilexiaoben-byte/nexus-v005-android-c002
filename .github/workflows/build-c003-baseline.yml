@@ -1,0 +1,70 @@
+name: Build frozen Android C003 baseline
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/build-c003-baseline.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-c003:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Validate frozen C002
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '26b5b157b487eda3a0c92198066d39beb5e6eb1149a3c4a705b49274c636eed4  V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip' | sha256sum -c -
+
+      - name: Create C003 from C002 with canonical launcher baked in
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf c003work
+          mkdir c003work
+          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d c003work
+          ROOT="$GITHUB_WORKSPACE/c003work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          python3 branding/ensure_launcher.py "$ROOT"
+          chmod +x "$ROOT/run_validation.sh" "$ROOT/run_core_tests.sh"
+          "$ROOT/run_validation.sh" | tee /tmp/C003_VALIDATION.txt
+          grep -F 'RESULT pass=25 fail=0' /tmp/C003_VALIDATION.txt
+          grep -F 'STATIC_RESULT pass=10 fail=0' /tmp/C003_VALIDATION.txt
+
+      - name: Freeze C003 archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE/c003work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          find "$ROOT" -exec touch -t 202609100000.00 {} +
+          rm -f V005_ANDROID_CHROMIUM_WEBVIEW_C003.zip V005_ANDROID_CHROMIUM_WEBVIEW_C003.zip.sha256
+          (cd c003work && find V005_ANDROID_CHROMIUM_WEBVIEW_C002 -print | LC_ALL=C sort | zip -X -q "$GITHUB_WORKSPACE/V005_ANDROID_CHROMIUM_WEBVIEW_C003.zip" -@)
+          sha256sum V005_ANDROID_CHROMIUM_WEBVIEW_C003.zip | tee V005_ANDROID_CHROMIUM_WEBVIEW_C003.zip.sha256
+          C003_SHA="$(cut -d' ' -f1 V005_ANDROID_CHROMIUM_WEBVIEW_C003.zip.sha256)"
+          cat > ANDROID_BASELINE_CURRENT.txt <<EOF
+          NEXUS_ANDROID_BASELINE=C003
+          ARCHIVE=V005_ANDROID_CHROMIUM_WEBVIEW_C003.zip
+          SHA256=$C003_SHA
+          SOURCE=C002+canonical-NEXUS-launcher
+          INTERNAL_ROOT=V005_ANDROID_CHROMIUM_WEBVIEW_C002
+          EOF
+
+      - name: Commit frozen C003 to main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add V005_ANDROID_CHROMIUM_WEBVIEW_C003.zip V005_ANDROID_CHROMIUM_WEBVIEW_C003.zip.sha256 ANDROID_BASELINE_CURRENT.txt
+          if git diff --cached --quiet; then
+            echo 'C003 already current; nothing to commit.'
+          else
+            git commit -m 'baseline: freeze C003 with canonical NEXUS launcher'
+            git push origin HEAD:main
+          fi
