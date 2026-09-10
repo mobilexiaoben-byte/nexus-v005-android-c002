@@ -28,10 +28,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p work/base
-          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d work/base
-          python3 u004ux004/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/base/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
-          python3 u004ux004/inject_menu_instrumentation.py "$GITHUB_WORKSPACE/work/base/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          mkdir -p base work
+          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d base
+          python3 u004ux004/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          python3 u004ux004/inject_menu_instrumentation.py "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
 
       - uses: actions/setup-java@v5
         with:
@@ -50,14 +50,14 @@ jobs:
           profile: pixel_6
           disable-animations: true
           script: |
-            cd work/base/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+            cd work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
             gradle :app:connectedDebugAndroidTest --stacktrace --no-daemon | tee "$GITHUB_WORKSPACE/U004_MENU_INSTRUMENTATION.txt"
 
       - name: Assert menu flow PASS
         shell: bash
         run: |
           set -euo pipefail
-          grep -E 'BUILD SUCCESSFUL|1 test completed' U004_MENU_INSTRUMENTATION.txt
+          grep -F 'BUILD SUCCESSFUL' U004_MENU_INSTRUMENTATION.txt
           ! grep -E 'FAILURES!!!|FAILED|There were failing tests' U004_MENU_INSTRUMENTATION.txt
           echo 'U004_MENU_FLOW_PASS: provider_response -> nexus_result -> technical_details'
 
