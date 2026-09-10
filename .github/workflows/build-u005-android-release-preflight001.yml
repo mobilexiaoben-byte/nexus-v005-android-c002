@@ -1,0 +1,201 @@
+name: NEXUS U005 - Android Release Preflight 001
+
+on:
+  push:
+    branches: [u005-android-release-packaging-001]
+    paths:
+      - '.github/workflows/build-u005-android-release-preflight001.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release-preflight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact U005 release-preflight branch
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
+      - name: Prove validated SHELL 004 ancestry
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXPECTED_BASE='c7c3fa80c710e58b036f217aa8ab3ed605ca52d0'
+          ACTUAL_PARENT="$(git rev-parse HEAD^)"
+          echo "HEAD=$(git rev-parse HEAD)" | tee /tmp/U005_GIT_PROVENANCE.txt
+          echo "PARENT=$ACTUAL_PARENT" | tee -a /tmp/U005_GIT_PROVENANCE.txt
+          echo "EXPECTED_VALIDATED_SHELL004_BASE=$EXPECTED_BASE" | tee -a /tmp/U005_GIT_PROVENANCE.txt
+          test "$ACTUAL_PARENT" = "$EXPECTED_BASE"
+          echo 'U005_SHELL004_ANCESTRY_PASS' | tee -a /tmp/U005_GIT_PROVENANCE.txt
+
+      - name: Validate frozen C002 baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '26b5b157b487eda3a0c92198066d39beb5e6eb1149a3c4a705b49274c636eed4  V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip' | sha256sum -c - | tee /tmp/U005_C002_SHA.txt
+          rm -rf base work
+          mkdir base
+          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d base
+          cd base/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+          chmod +x run_validation.sh run_core_tests.sh
+          ./run_validation.sh | tee /tmp/U005_C002_VALIDATION.txt
+          grep -F 'RESULT pass=25 fail=0' /tmp/U005_C002_VALIDATION.txt
+          grep -F 'STATIC_RESULT pass=10 fail=0' /tmp/U005_C002_VALIDATION.txt
+
+      - name: Derive exact U004 UX SHELL 004 production source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 u004ux004/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          ROOT='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002'
+          chmod +x u004ux004/run_validation.sh
+          "$ROOT/run_core_tests.sh" | tee /tmp/U005_RELEASE_CORE.txt
+          grep -F 'RESULT pass=25 fail=0' /tmp/U005_RELEASE_CORE.txt
+          u004ux004/run_validation.sh "$ROOT" | tee /tmp/U005_RELEASE_UX.txt
+          grep -E '^U004_UX_SHELL_004_STATIC_RESULT pass=[0-9]+ fail=0$' /tmp/U005_RELEASE_UX.txt
+          sha256sum \
+            "$ROOT/app/build.gradle.kts" \
+            "$ROOT/app/src/main/AndroidManifest.xml" \
+            "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt" \
+            "$ROOT/app/src/main/res/layout/activity_main.xml" \
+            "$ROOT/app/src/main/assets/nexus/chatgpt_provider_c002.js" \
+            "$ROOT/app/src/main/java/nexus/android/c002/web/OriginPolicy.kt" \
+            "$ROOT/app/src/main/java/nexus/android/c002/web/NexusWebBridge.kt" \
+            | tee /tmp/U005_RELEASE_SOURCE_SHA256.txt
+
+      - name: Apply canonical NEXUS launcher branding
+        uses: mobilexiaoben-byte/nexus-v005-android-c002/branding@main
+        with:
+          root: ${{ github.workspace }}/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+
+      - name: Release source policy preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002'
+          BUILD="$ROOT/app/build.gradle.kts"
+          MANIFEST="$ROOT/app/src/main/AndroidManifest.xml"
+          grep -F 'applicationId = "nexus.android.u004.uxshell004"' "$BUILD"
+          grep -F 'versionCode = 43' "$BUILD"
+          grep -F 'versionName = "0.0.43-u004-android-ux-shell004-content"' "$BUILD"
+          if grep -RniE 'android:debuggable="true"|android:testOnly="true"' "$ROOT/app/src/main" "$BUILD"; then
+            echo 'U005_RELEASE_SOURCE_DEBUG_OR_TESTONLY_FAIL' >&2
+            exit 1
+          fi
+          if grep -Rni 'REQUEST_INSTALL_PACKAGES' "$ROOT/app/src/main"; then
+            echo 'U005_RELEASE_REQUEST_INSTALL_PACKAGES_FAIL' >&2
+            exit 1
+          fi
+          if grep -RniE 'AccessibilityService|BIND_ACCESSIBILITY_SERVICE' "$ROOT/app/src/main"; then
+            echo 'U005_RELEASE_ACCESSIBILITY_FAIL' >&2
+            exit 1
+          fi
+          if ! grep -F 'android:usesCleartextTraffic="false"' "$MANIFEST"; then
+            echo 'U005_RELEASE_EXPLICIT_CLEARTEXT_FALSE_MISSING' >&2
+            exit 2
+          fi
+          echo 'U005_RELEASE_SOURCE_POLICY_PASS' | tee /tmp/U005_RELEASE_SOURCE_POLICY.txt
+
+      - name: Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Gradle 9.6
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Assemble unsigned RELEASE
+        working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle :app:assembleRelease --stacktrace --no-daemon
+
+      - name: Validate unsigned release package
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002'
+          APK="$(find "$ROOT/app/build/outputs/apk/release" -maxdepth 1 -type f -name '*.apk' | head -1)"
+          test -n "$APK"
+          OUT='NEXUS-U005-ANDROID-RELEASE-PREFLIGHT-001-UNSIGNED.apk'
+          cp "$APK" "$OUT"
+          sha256sum "$OUT" | tee /tmp/U005_RELEASE_APK_SHA256.txt
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)"
+          "$AAPT" dump badging "$OUT" | tee /tmp/U005_RELEASE_BADGING.txt
+          grep -F "package: name='nexus.android.u004.uxshell004'" /tmp/U005_RELEASE_BADGING.txt
+          grep -F "application-label:'NEXUS'" /tmp/U005_RELEASE_BADGING.txt
+          if grep -Fq 'application-debuggable' /tmp/U005_RELEASE_BADGING.txt; then
+            echo 'U005_RELEASE_APK_DEBUGGABLE_FAIL' >&2
+            exit 1
+          fi
+          "$AAPT" dump permissions "$OUT" | tee /tmp/U005_RELEASE_PERMISSIONS.txt
+          "$AAPT" dump xmltree "$OUT" AndroidManifest.xml | tee /tmp/U005_RELEASE_MANIFEST_XMLTREE.txt
+          if grep -E 'android:(debuggable|testOnly).*0xffffffff' /tmp/U005_RELEASE_MANIFEST_XMLTREE.txt; then
+            echo 'U005_RELEASE_APK_DEBUG_TESTONLY_TRUE_FAIL' >&2
+            exit 1
+          fi
+          if "$APKSIGNER" verify "$OUT" >/tmp/U005_RELEASE_SIGNATURE_CHECK.txt 2>&1; then
+            echo 'U005_RELEASE_UNEXPECTEDLY_SIGNED_FAIL' >&2
+            cat /tmp/U005_RELEASE_SIGNATURE_CHECK.txt
+            exit 1
+          fi
+          echo 'U005_RELEASE_UNSIGNED_EXPECTED_PASS' | tee -a /tmp/U005_RELEASE_SIGNATURE_CHECK.txt
+          echo 'U005_ANDROID_RELEASE_PREFLIGHT_001_PASS' | tee /tmp/U005_RELEASE_GATE.txt
+
+      - name: Package provenance and evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p u005-release-evidence
+          cp /tmp/U005_GIT_PROVENANCE.txt u005-release-evidence/
+          cp /tmp/U005_C002_SHA.txt u005-release-evidence/
+          cp /tmp/U005_C002_VALIDATION.txt u005-release-evidence/
+          cp /tmp/U005_RELEASE_CORE.txt u005-release-evidence/
+          cp /tmp/U005_RELEASE_UX.txt u005-release-evidence/
+          cp /tmp/U005_RELEASE_SOURCE_SHA256.txt u005-release-evidence/
+          cp /tmp/U005_RELEASE_SOURCE_POLICY.txt u005-release-evidence/
+          cp /tmp/U005_RELEASE_APK_SHA256.txt u005-release-evidence/
+          cp /tmp/U005_RELEASE_BADGING.txt u005-release-evidence/
+          cp /tmp/U005_RELEASE_PERMISSIONS.txt u005-release-evidence/
+          cp /tmp/U005_RELEASE_MANIFEST_XMLTREE.txt u005-release-evidence/
+          cp /tmp/U005_RELEASE_SIGNATURE_CHECK.txt u005-release-evidence/
+          cp /tmp/U005_RELEASE_GATE.txt u005-release-evidence/
+          printf '%s\n' \
+            'STATUS=PRE_SIGN_ONLY' \
+            'SIGNING_KEY_GENERATED=NO' \
+            'APK_PUBLICATION=NO' \
+            'GITHUB_RELEASE_CREATED=NO' \
+            'NEXT_GATE=U005-ANDROID-SIGNING-CUSTODY-PROCEDURE-001' \
+            > u005-release-evidence/U005_RELEASE_BOUNDARY.txt
+          (cd work && zip -qr ../U005_ANDROID_RELEASE_PREFLIGHT_001_SOURCE.zip V005_ANDROID_CHROMIUM_WEBVIEW_C002)
+          sha256sum U005_ANDROID_RELEASE_PREFLIGHT_001_SOURCE.zip | tee u005-release-evidence/U005_RELEASE_SOURCE_ARCHIVE_SHA256.txt
+
+      - name: Upload unsigned release candidate
+        uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-U005-ANDROID-RELEASE-PREFLIGHT-001-UNSIGNED
+          path: NEXUS-U005-ANDROID-RELEASE-PREFLIGHT-001-UNSIGNED.apk
+          if-no-files-found: error
+
+      - name: Upload release source
+        uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-U005-ANDROID-RELEASE-PREFLIGHT-001-SOURCE
+          path: U005_ANDROID_RELEASE_PREFLIGHT_001_SOURCE.zip
+          if-no-files-found: error
+
+      - name: Upload release preflight evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-U005-ANDROID-RELEASE-PREFLIGHT-001-EVIDENCE
+          path: u005-release-evidence/
+          if-no-files-found: error
