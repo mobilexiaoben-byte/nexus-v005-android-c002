@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+# U004 UX SHELL 004 validation trigger
 ROOT="$1"
 PASS=0
 FAIL=0
