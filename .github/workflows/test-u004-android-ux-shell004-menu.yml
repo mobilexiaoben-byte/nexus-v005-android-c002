@@ -50,8 +50,7 @@ jobs:
           profile: pixel_6
           disable-animations: true
           script: |
-            set -o pipefail
-            gradle -p "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002" :app:connectedDebugAndroidTest --stacktrace --no-daemon | tee "$GITHUB_WORKSPACE/U004_MENU_INSTRUMENTATION.txt"
+            gradle -p "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002" :app:connectedDebugAndroidTest --stacktrace --no-daemon > "$GITHUB_WORKSPACE/U004_MENU_INSTRUMENTATION.txt" 2>&1; rc=$?; cat "$GITHUB_WORKSPACE/U004_MENU_INSTRUMENTATION.txt"; exit $rc
 
       - name: Assert menu flow PASS
         shell: bash
