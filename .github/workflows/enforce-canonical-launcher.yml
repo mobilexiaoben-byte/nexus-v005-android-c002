@@ -7,7 +7,8 @@ on:
       - 'v005-c002-*'
     paths:
       - '.github/workflows/**'
-      - 'branding/**'
+      - 'V005_ANDROID_CHROMIUM_WEBVIEW_C003.zip'
+      - 'V005_ANDROID_CHROMIUM_WEBVIEW_C003.zip.sha256'
   workflow_dispatch:
 
 permissions:
@@ -21,7 +22,7 @@ jobs:
         with:
           fetch-depth: 2
 
-      - name: Enforce canonical launcher on active APK workflows
+      - name: Enforce frozen C003 baseline on active APK workflows
         shell: bash
         env:
           CURRENT_BRANCH: ${{ github.ref_name }}
@@ -44,6 +45,10 @@ jobs:
           failures = []
           checked = []
           build_re = re.compile(r'\b(?:gradle|\./gradlew)\b[^\n]*(?:assemble|bundle)(?:Debug|Release)?', re.I)
+          c003_archive = 'V005_ANDROID_CHROMIUM_WEBVIEW_C003.zip'
+          c003_sha = '69f88ce310515d94c7225a080d615c64c7bc3dac786cc2a9d590901599fa6670'
+          verifier = 'uses: mobilexiaoben-byte/nexus-v005-android-c002/branding/verify-apk@main'
+
           for path in sorted(list(root.glob('*.yml')) + list(root.glob('*.yaml'))):
               text = path.read_text(encoding='utf-8')
               if not build_re.search(text):
@@ -52,10 +57,12 @@ jobs:
               if not active:
                   continue
               checked.append(str(path))
-              if 'uses: mobilexiaoben-byte/nexus-v005-android-c002/branding@main' not in text:
-                  failures.append(f'{path}: missing canonical branding@main action')
-              if 'uses: mobilexiaoben-byte/nexus-v005-android-c002/branding/verify-apk@main' not in text:
-                  failures.append(f'{path}: missing canonical verify-apk@main action')
+              if c003_archive not in text:
+                  failures.append(f'{path}: must build from frozen C003 baseline')
+              if c003_sha not in text:
+                  failures.append(f'{path}: missing frozen C003 SHA-256')
+              if verifier not in text:
+                  failures.append(f'{path}: missing final APK launcher verification')
 
           if not checked:
               print('No active APK build workflow required checking.')
@@ -63,8 +70,8 @@ jobs:
               print('Checked active APK workflows:')
               for x in checked: print(' -', x)
           if failures:
-              print('\nCANONICAL LAUNCHER CONTRACT: FAIL', file=sys.stderr)
+              print('\nC003 BASELINE CONTRACT: FAIL', file=sys.stderr)
               for x in failures: print(' -', x, file=sys.stderr)
               raise SystemExit(1)
-          print('NEXUS_CANONICAL_LAUNCHER_WORKFLOW_CONTRACT=PASS')
+          print('NEXUS_ANDROID_C003_BASELINE_WORKFLOW_CONTRACT=PASS')
           PY
