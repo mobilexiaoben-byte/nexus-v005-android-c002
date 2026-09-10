@@ -63,6 +63,11 @@ jobs:
         with:
           gradle-version: '9.6.0'
 
+      - name: Apply NEXUS icon
+        uses: mobilexiaoben-byte/nexus-v005-android-c002/branding@main
+        with:
+          root: ${{ github.workspace }}/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+
       - name: Build APK
         working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
         shell: bash
