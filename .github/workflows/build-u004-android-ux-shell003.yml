@@ -1,0 +1,127 @@
+name: NEXUS U004 - Android UX Shell 003
+
+on:
+  push:
+    branches: [u004-android-ux-shell-003-user-result]
+    paths:
+      - 'u004ux003/**'
+      - '.github/workflows/build-u004-android-ux-shell003.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate frozen C002 baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '26b5b157b487eda3a0c92198066d39beb5e6eb1149a3c4a705b49274c636eed4  V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip' | sha256sum -c -
+          mkdir base
+          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d base
+          cd base/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+          chmod +x run_validation.sh run_core_tests.sh
+          ./run_validation.sh | tee /tmp/C002_VALIDATION.txt
+          grep -F 'RESULT pass=25 fail=0' /tmp/C002_VALIDATION.txt
+          grep -F 'STATIC_RESULT pass=10 fail=0' /tmp/C002_VALIDATION.txt
+
+      - name: Derive U004 UX candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 u004ux003/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          ROOT='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002'
+          sha256sum "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt" \
+                    "$ROOT/app/src/main/res/layout/activity_main.xml" \
+                    "$ROOT/app/src/main/assets/nexus/chatgpt_provider_c002.js" \
+                    "$ROOT/app/src/main/java/nexus/android/c002/web/OriginPolicy.kt" \
+                    "$ROOT/app/src/main/java/nexus/android/c002/web/NexusWebBridge.kt" \
+                    > /tmp/U004_UX_SOURCE_SHA256.txt
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Validate core and UX shell
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002'
+          "$ROOT/run_core_tests.sh" | tee /tmp/U004_UX_CORE.txt
+          grep -F 'RESULT pass=25 fail=0' /tmp/U004_UX_CORE.txt
+          chmod +x u004ux003/run_validation.sh
+          u004ux003/run_validation.sh "$ROOT" | tee /tmp/U004_UX_VALIDATION.txt
+          grep -E '^U004_UX_SHELL_003_STATIC_RESULT pass=[0-9]+ fail=0$' /tmp/U004_UX_VALIDATION.txt
+
+      - name: Apply NEXUS launcher branding
+        uses: mobilexiaoben-byte/nexus-v005-android-c002/branding@main
+        with:
+          root: ${{ github.workspace }}/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+
+      - name: Build APK
+        working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+        shell: bash
+        run: gradle :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Validate APK badging
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/build/outputs/apk/debug/app-debug.apk'
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
+          "$AAPT" dump badging "$APK" | tee /tmp/U004_UX_BADGING.txt
+          grep -F "package: name='nexus.android.u004.uxshell003'" /tmp/U004_UX_BADGING.txt
+          grep -F "application-label:'NEXUS'" /tmp/U004_UX_BADGING.txt
+
+      - name: Prepare artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK_OUT='NEXUS-U004-ANDROID-UX-SHELL-003-debug.apk'
+          cp work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/build/outputs/apk/debug/app-debug.apk "$APK_OUT"
+          sha256sum "$APK_OUT" > "$APK_OUT.sha256"
+          cp /tmp/C002_VALIDATION.txt .
+          cp /tmp/U004_UX_CORE.txt .
+          cp /tmp/U004_UX_VALIDATION.txt .
+          cp /tmp/U004_UX_SOURCE_SHA256.txt .
+          cp /tmp/U004_UX_BADGING.txt .
+          (cd work && zip -qr ../U004_ANDROID_UX_SHELL_003_SOURCE.zip V005_ANDROID_CHROMIUM_WEBVIEW_C002)
+          sha256sum U004_ANDROID_UX_SHELL_003_SOURCE.zip > U004_ANDROID_UX_SHELL_003_SOURCE.zip.sha256
+          cat "$APK_OUT.sha256"
+          cat U004_ANDROID_UX_SHELL_003_SOURCE.zip.sha256
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-U004-ANDROID-UX-SHELL-003-debug
+          path: NEXUS-U004-ANDROID-UX-SHELL-003-debug.apk
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-U004-ANDROID-UX-SHELL-003-source
+          path: U004_ANDROID_UX_SHELL_003_SOURCE.zip
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-U004-ANDROID-UX-SHELL-003-evidence
+          path: |
+            NEXUS-U004-ANDROID-UX-SHELL-003-debug.apk.sha256
+            U004_ANDROID_UX_SHELL_003_SOURCE.zip.sha256
+            C002_VALIDATION.txt
+            U004_UX_CORE.txt
+            U004_UX_VALIDATION.txt
+            U004_UX_SOURCE_SHA256.txt
+            U004_UX_BADGING.txt
+          if-no-files-found: error
