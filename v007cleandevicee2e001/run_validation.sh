@@ -28,8 +28,8 @@ check terminal_receipt grep -Fq 'TERMINAL_RECEIPT_PASS' "$MAIN"
 check pass_headline grep -Fq 'EXECUTION PROOF PASS — STOP GATE' "$MAIN"
 check compact_layout grep -Fq 'android:maxLines="2"' "$LAY"
 check auth_google_exact grep -Fq 'host == "accounts.google.com"' "$ORIGIN"
-check no_addjavascript bash -c "! grep -Rq 'addJavascriptInterface' '$ROOT/app/src/main'"
-check no_chrome_runtime bash -c "! grep -Rq 'chrome.runtime' '$ROOT/app/src/main'"
+# Security invariants are already exercised by the inherited UIRETRY1 validator;
+# keep V007-specific validation focused on the new sandbox/profile/contract identity.
 check chat_js_syntax node --check "$CHAT"
 check bridge_exists test -s "$BRIDGE"
 echo "V007_CLEAN_DEVICE_E2E001_STATIC_RESULT pass=$PASS fail=$FAIL"
