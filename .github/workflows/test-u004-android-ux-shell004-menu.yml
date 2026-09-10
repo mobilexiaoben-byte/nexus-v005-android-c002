@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   menu-instrumentation:
-    runs-on: macos-14
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v6
@@ -22,15 +22,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          import hashlib
-          from pathlib import Path
-          p=Path('V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip')
-          got=hashlib.sha256(p.read_bytes()).hexdigest()
-          expected='26b5b157b487eda3a0c92198066d39beb5e6eb1149a3c4a705b49274c636eed4'
-          assert got == expected, (got, expected)
-          print('FROZEN_C002_SHA256_PASS')
-          PY
+          echo '26b5b157b487eda3a0c92198066d39beb5e6eb1149a3c4a705b49274c636eed4  V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip' | sha256sum -c -
 
       - name: Derive exact U004 SHELL 004 candidate
         shell: bash
@@ -50,11 +42,19 @@ jobs:
         with:
           gradle-version: '9.6.0'
 
+      - name: Enable KVM
+        shell: bash
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -l /dev/kvm
+
       - name: Run menu instrumentation on accelerated Android emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 29
-          arch: arm64-v8a
+          arch: x86_64
           profile: pixel_2
           disable-animations: true
           script: |
