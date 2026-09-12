@@ -29,8 +29,11 @@ jobs:
         shell: bash
         run: |
           set -u
+          set +e
           bash zaiproof001/run_validation.sh "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002" | tee /tmp/ZAI_BASE.txt
-          test "${PIPESTATUS[0]}" -ne 0
+          rc=${PIPESTATUS[0]}
+          set -e
+          test "$rc" -ne 0
           grep -F 'FAIL app_id' /tmp/ZAI_BASE.txt
           grep -F 'FAIL version_name' /tmp/ZAI_BASE.txt
           grep -F 'FAIL manifest_label' /tmp/ZAI_BASE.txt
