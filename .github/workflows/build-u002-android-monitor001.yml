@@ -1,0 +1,92 @@
+name: NEXUS U002 Android Monitor 001
+
+on:
+  push:
+    branches: [u002-android-monitor001]
+    paths:
+      - '.github/workflows/build-u002-android-monitor001.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Rebuild proven V005 Z.ai source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir base
+          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d base
+          python3 u002monitor001/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+
+      - name: Validate preserved Z.ai transport
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash zaiproof001/run_validation.sh "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002" | tee /tmp/ZAI_BASE.txt
+          grep -F 'ZAI_PROOF001_STATIC_RESULT pass=39 fail=0' /tmp/ZAI_BASE.txt
+
+      - name: Validate U002 monitoring adapter
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash u002monitor001/run_validation.sh "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002" | tee /tmp/U002_MONITOR.txt
+          grep -F 'U002_ANDROID_MONITOR_STATIC_RESULT pass=15 fail=0' /tmp/U002_MONITOR.txt
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Apply NEXUS icon
+        uses: mobilexiaoben-byte/nexus-v005-android-c002/branding@main
+        with:
+          root: ${{ github.workspace }}/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+
+      - name: Build APK
+        working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+        run: gradle :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Package evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/build/outputs/apk/debug/app-debug.apk'
+          cp "$APK" NEXUS-U002-ANDROID-MONITOR-001-debug.apk
+          sha256sum NEXUS-U002-ANDROID-MONITOR-001-debug.apk > NEXUS-U002-ANDROID-MONITOR-001-debug.apk.sha256
+          (cd work && zip -qr ../NEXUS_U002_ANDROID_MONITOR_001_SOURCE.zip V005_ANDROID_CHROMIUM_WEBVIEW_C002)
+          sha256sum NEXUS_U002_ANDROID_MONITOR_001_SOURCE.zip > NEXUS_U002_ANDROID_MONITOR_001_SOURCE.zip.sha256
+          cp /tmp/ZAI_BASE.txt .
+          cp /tmp/U002_MONITOR.txt .
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-U002-ANDROID-MONITOR-001-debug
+          path: NEXUS-U002-ANDROID-MONITOR-001-debug.apk
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-U002-ANDROID-MONITOR-001-source
+          path: NEXUS_U002_ANDROID_MONITOR_001_SOURCE.zip
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-U002-ANDROID-MONITOR-001-evidence
+          path: |
+            NEXUS-U002-ANDROID-MONITOR-001-debug.apk.sha256
+            NEXUS_U002_ANDROID_MONITOR_001_SOURCE.zip.sha256
+            ZAI_BASE.txt
+            U002_MONITOR.txt
+          if-no-files-found: error
