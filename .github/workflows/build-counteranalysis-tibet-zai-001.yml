@@ -1,0 +1,79 @@
+name: NEXUS Z.ai Counteranalysis Tibet 001
+
+on:
+  push:
+    branches: [counteranalysis-tibet-zai-001]
+    paths:
+      - '.github/workflows/build-counteranalysis-tibet-zai-001.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Derive isolated counter-analysis app
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir base
+          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d base
+          python3 u002monitor001/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('work/V005_ANDROID_CHROMIUM_WEBVIEW_C002')
+          p=root/'app/build.gradle.kts'; s=p.read_text()
+          s=s.replace('applicationId = "nexus.android.c002.u002monitor001"','applicationId = "nexus.android.c002.countertest"')
+          s=s.replace('versionCode = 29','versionCode = 1')
+          s=s.replace('versionName = "0.0.29-u002-android-monitor001"','versionName = "0.0.1-zai-counteranalysis-tibet"')
+          p.write_text(s)
+          p=root/'app/src/main/AndroidManifest.xml'; s=p.read_text()
+          p.write_text(s.replace('android:label="NEXUS U002 ANDROID MONITOR TEST"','android:label="NEXUS CounterTest — Tibet"'))
+          p=root/'app/src/main/java/nexus/android/c002/MainActivity.kt'; s=p.read_text()
+          s=s.replace('const val PROFILE_NAME = "nexus_provider_profile_v005_zai_proof001"','const val PROFILE_NAME = "nexus_zai_counteranalysis_tibet_001"')
+          s=s.replace('const val BRIDGE_RUN_ID = "V005-ZAI-ANDROID-PROOF-001-BRIDGE-001"','const val BRIDGE_RUN_ID = "COUNTERANALYSIS-TIBET-ZAI-001-BRIDGE"')
+          s=s.replace('const val JOB_ID = "V005-ZAI-ANDROID-PROOF-001"','const val JOB_ID = "COUNTERANALYSIS-TIBET-ZAI-001"')
+          s=s.replace('const val COMPARISON_ID = "V005-ZAI-ANDROID-PROOF-001-COMP-001"','const val COMPARISON_ID = "CMP-TIBET-20260913-001"')
+          s=s.replace('const val RESULT_PACK_VERSION = "V005_ZAI_ANDROID_PROOF_001_V1"','const val RESULT_PACK_VERSION = "NEXUS_COUNTERANALYSIS_V1"')
+          s=s.replace('const val PROOF_TOKEN = "NEXUS_ZAI_EXECUTION_PROOF_001_OK"','const val PROOF_TOKEN = "<GENERATE_ANALYSIS>"')
+          s=s.replace('const val PROOF_QUESTION = "Return the exact frozen Result Pack for this Android Z.ai transport proof. The answer field must be NEXUS_ZAI_EXECUTION_PROOF_001_OK."','const val PROOF_QUESTION = "Quelle est la situation politique actuelle au Tibet ? Analyse indépendamment le statut institutionnel et le contrôle politique, les libertés politiques et civiles, la politique religieuse et culturelle, le rôle du gouvernement chinois, la position du dalaï-lama et de la diaspora tibétaine, les principales controverses factuelles et les points d’incertitude. Distingue faits établis, interprétations et affirmations contestées. N’utilise pas la réponse d’un autre modèle."')
+          s=s.replace('const val PROOF_HANDOFF = "Read-only V-005 Z.ai Android execution proof. Use only the frozen package. No web research, no canonical write, no state mutation."','const val PROOF_HANDOFF = "Independent counter-analysis test. No access to another model response. No canonical write and no state mutation. External web research disabled for this test."')
+          s=s.replace('if (resultPack.optString("answer") != PROOF_TOKEN) return "ANDROID_RESULT_ANSWER_MISMATCH"','val answer = resultPack.optString("answer").trim()\n        if (answer.isBlank() || answer == PROOF_TOKEN) return "ANDROID_RESULT_ANSWER_MISSING"')
+          s=s.replace('.put("answer", PROOF_TOKEN)\n            .put("external_research", false)', '.put("answer", resultPack.optString("answer"))\n            .put("external_research", false)')
+          s=s.replace('recordFinalEvent("TERMINAL_RECEIPT_PASS", "job_id=$JOB_ID;answer=$PROOF_TOKEN")','recordFinalEvent("TERMINAL_RECEIPT_PASS", "job_id=$JOB_ID;answer_len=${resultPack.optString(\"answer\").length}")')
+          s=s.replace('const val ACTIVE_HEADLINE = "Z.AI PROOF 001 — sign in or use a ready session; one read-only proof job will run after DESCRIBE PASS"','const val ACTIVE_HEADLINE = "Z.AI COUNTER-ANALYSIS — Tibet — sign in or use a ready session; test runs after DESCRIBE PASS"')
+          p.write_text(s)
+          p=root/'app/src/main/assets/nexus/zai_provider_c002.js'; s=p.read_text()
+          s=s.replace("'- Return exactly ONE JSON object and nothing else.',\n    expected_result_pack", "'- Return exactly ONE JSON object and nothing else.',\n    '- Use expected_result_pack only as the required JSON shape. Replace answer=\\\"<GENERATE_ANALYSIS>\\\" with your own independent substantive analysis in French.',\n    expected_result_pack")
+          p.write_text(s)
+          PY
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Build isolated counter-analysis APK
+        working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+        run: gradle :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Package artifact
+        shell: bash
+        run: |
+          cp work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/build/outputs/apk/debug/app-debug.apk NEXUS-ZAI-COUNTERANALYSIS-TIBET-001-debug.apk
+          sha256sum NEXUS-ZAI-COUNTERANALYSIS-TIBET-001-debug.apk
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-ZAI-COUNTERANALYSIS-TIBET-001-debug
+          path: NEXUS-ZAI-COUNTERANALYSIS-TIBET-001-debug.apk
+          if-no-files-found: error
