@@ -1,6 +1,10 @@
 name: NEXUS U005 - Protected Android Signing 001
 
 on:
+  push:
+    branches: [u005-android-protected-signing-001]
+    paths:
+      - '.github/workflows/build-u005-android-protected-signing001.yml'
   workflow_dispatch:
 
 permissions:
