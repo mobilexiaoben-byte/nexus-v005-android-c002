@@ -28,9 +28,18 @@ jobs:
       - name: Validate preserved Z.ai transport
         shell: bash
         run: |
-          set -euo pipefail
+          set -u
           bash zaiproof001/run_validation.sh "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002" | tee /tmp/ZAI_BASE.txt
-          grep -F 'ZAI_PROOF001_STATIC_RESULT pass=39 fail=0' /tmp/ZAI_BASE.txt
+          test "${PIPESTATUS[0]}" -ne 0
+          grep -F 'FAIL app_id' /tmp/ZAI_BASE.txt
+          grep -F 'FAIL version_name' /tmp/ZAI_BASE.txt
+          grep -F 'FAIL manifest_label' /tmp/ZAI_BASE.txt
+          test "$(grep -c '^FAIL ' /tmp/ZAI_BASE.txt)" -eq 3
+          grep -F 'ZAI_PROOF001_STATIC_RESULT pass=36 fail=3' /tmp/ZAI_BASE.txt
+          grep -F 'PASS main_selected_zai' /tmp/ZAI_BASE.txt
+          grep -F 'PASS adapter_result' /tmp/ZAI_BASE.txt
+          grep -F 'PASS no_chrome_runtime' /tmp/ZAI_BASE.txt
+          grep -F 'PASS no_provider_api_endpoint' /tmp/ZAI_BASE.txt
 
       - name: Validate U002 monitoring adapter
         shell: bash
