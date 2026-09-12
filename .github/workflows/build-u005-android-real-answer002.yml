@@ -1,0 +1,260 @@
+name: NEXUS U005 - Android Real Answer 002
+
+on:
+  push:
+    branches: [u005-android-real-answer-002]
+    paths:
+      - '.github/workflows/build-u005-android-real-answer002.yml'
+      - 'u005realanswer002/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  signed-beta-real-answer:
+    environment: nexus-android-signing
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout real-answer branch
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Prove signed candidate ancestry
+        shell: bash
+        run: |
+          set -euo pipefail
+          AUTHORIZED_BASE='682bc87c9481f13501653ef99e5a58541aff6ebf'
+          git merge-base --is-ancestor "$AUTHORIZED_BASE" HEAD
+          {
+            echo "HEAD=$(git rev-parse HEAD)"
+            echo "AUTHORIZED_SIGNED_BASE=$AUTHORIZED_BASE"
+            echo 'U005_REAL_ANSWER_ANCESTRY_PASS'
+          } | tee /tmp/U005_REAL_ANSWER_GIT_PROVENANCE.txt
+
+      - name: Validate frozen C002 baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '26b5b157b487eda3a0c92198066d39beb5e6eb1149a3c4a705b49274c636eed4  V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip' | sha256sum -c - | tee /tmp/U005_C002_SHA.txt
+          rm -rf base work
+          mkdir base
+          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d base
+          cd base/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+          chmod +x run_validation.sh run_core_tests.sh
+          ./run_validation.sh | tee /tmp/U005_C002_VALIDATION.txt
+          grep -F 'RESULT pass=25 fail=0' /tmp/U005_C002_VALIDATION.txt
+          grep -F 'STATIC_RESULT pass=10 fail=0' /tmp/U005_C002_VALIDATION.txt
+
+      - name: Derive validated U004 UX SHELL 004 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 u004ux004/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          ROOT='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002'
+          chmod +x u004ux004/run_validation.sh
+          "$ROOT/run_core_tests.sh" | tee /tmp/U005_RELEASE_CORE.txt
+          grep -F 'RESULT pass=25 fail=0' /tmp/U005_RELEASE_CORE.txt
+          u004ux004/run_validation.sh "$ROOT" | tee /tmp/U005_RELEASE_UX_BASE.txt
+          grep -E '^U004_UX_SHELL_004_STATIC_RESULT pass=[0-9]+ fail=0$' /tmp/U005_RELEASE_UX_BASE.txt
+
+      - name: Apply permanent NEXUS identity version 45
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/build.gradle.kts')
+          s = p.read_text()
+          replacements = {
+              'applicationId = "nexus.android.u004.uxshell004"': 'applicationId = "nexus.android"',
+              'versionCode = 43': 'versionCode = 45',
+              'versionName = "0.0.43-u004-android-ux-shell004-content"': 'versionName = "0.0.45-u005-beta-realanswer002"',
+          }
+          for old, new in replacements.items():
+              if s.count(old) != 1:
+                  raise SystemExit(f'IDENTITY_PATCH_FAIL:{old}')
+              s = s.replace(old, new)
+          p.write_text(s)
+          PY
+          ROOT='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002'
+          BUILD="$ROOT/app/build.gradle.kts"
+          grep -F 'applicationId = "nexus.android"' "$BUILD"
+          grep -F 'versionCode = 45' "$BUILD"
+          grep -F 'versionName = "0.0.45-u005-beta-realanswer002"' "$BUILD"
+          sha256sum "$BUILD" | tee /tmp/U005_REAL_ANSWER_IDENTITY_SHA256.txt
+          echo 'U005_PERMANENT_APPLICATION_ID_V45_PASS' | tee /tmp/U005_REAL_ANSWER_IDENTITY_GATE.txt
+
+      - name: Apply canonical NEXUS launcher branding
+        uses: mobilexiaoben-byte/nexus-v005-android-c002/branding@main
+        with:
+          root: ${{ github.workspace }}/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+
+      - name: Apply live provider answer contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002'
+          python3 u005realanswer002/derive.py "$ROOT" | tee /tmp/U005_REAL_ANSWER_DERIVE.txt
+          chmod +x u005realanswer002/run_validation.sh
+          u005realanswer002/run_validation.sh "$ROOT" | tee /tmp/U005_REAL_ANSWER_STATIC.txt
+          grep -F 'U005_REAL_ANSWER_002_STATIC_RESULT pass=15 fail=0' /tmp/U005_REAL_ANSWER_STATIC.txt
+
+      - name: Release source policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002'
+          BUILD="$ROOT/app/build.gradle.kts"
+          MANIFEST="$ROOT/app/src/main/AndroidManifest.xml"
+          grep -F 'applicationId = "nexus.android"' "$BUILD"
+          grep -F 'versionCode = 45' "$BUILD"
+          grep -F 'versionName = "0.0.45-u005-beta-realanswer002"' "$BUILD"
+          grep -F 'android:usesCleartextTraffic="false"' "$MANIFEST"
+          if grep -RniE 'android:debuggable="true"|android:testOnly="true"|REQUEST_INSTALL_PACKAGES|AccessibilityService|BIND_ACCESSIBILITY_SERVICE' "$ROOT/app/src/main" "$BUILD"; then
+            echo 'U005_RELEASE_SOURCE_POLICY_FAIL' >&2
+            exit 1
+          fi
+          echo 'U005_REAL_ANSWER_RELEASE_SOURCE_POLICY_PASS' | tee /tmp/U005_REAL_ANSWER_RELEASE_SOURCE_POLICY.txt
+
+      - name: Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Gradle 9.6
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Assemble unsigned release
+        working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle :app:assembleRelease --stacktrace --no-daemon
+
+      - name: Sign verify and qualify real-answer candidate
+        shell: bash
+        env:
+          NEXUS_ANDROID_KEYSTORE_B64: ${{ secrets.NEXUS_ANDROID_KEYSTORE_B64 }}
+          NEXUS_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.NEXUS_ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "${NEXUS_ANDROID_KEYSTORE_B64:-}" || { echo 'MISSING_SECRET:NEXUS_ANDROID_KEYSTORE_B64' >&2; exit 21; }
+          test -n "${NEXUS_ANDROID_KEYSTORE_PASSWORD:-}" || { echo 'MISSING_SECRET:NEXUS_ANDROID_KEYSTORE_PASSWORD' >&2; exit 22; }
+
+          ROOT='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002'
+          UNSIGNED="$(find "$ROOT/app/build/outputs/apk/release" -maxdepth 1 -type f -name '*.apk' | head -1)"
+          test -n "$UNSIGNED"
+          OUT='NEXUS-U005-ANDROID-BETA-002-REAL-ANSWER-SIGNED.apk'
+          KS="$RUNNER_TEMP/nexus-android-release.jks"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)"
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
+          test -x "$APKSIGNER"
+          test -x "$AAPT"
+          cleanup() { rm -f "$KS"; unset NEXUS_ANDROID_KEYSTORE_B64 NEXUS_ANDROID_KEYSTORE_PASSWORD; }
+          trap cleanup EXIT
+
+          printf '%s' "$NEXUS_ANDROID_KEYSTORE_B64" | base64 --decode > "$KS"
+          chmod 600 "$KS"
+          test -s "$KS"
+
+          "$APKSIGNER" sign \
+            --ks "$KS" \
+            --ks-key-alias nexus-release \
+            --ks-pass env:NEXUS_ANDROID_KEYSTORE_PASSWORD \
+            --key-pass env:NEXUS_ANDROID_KEYSTORE_PASSWORD \
+            --out "$OUT" \
+            "$UNSIGNED"
+
+          "$APKSIGNER" verify --verbose --print-certs "$OUT" | tee /tmp/U005_REAL_ANSWER_CERTS.txt
+          EXPECTED='ED7F866A556116AA2971ABA584815A351994B347B421B67FEA024A7ECD729759'
+          OBSERVED="$(sed -n -E 's/^(Signer #1|V[0-9.]+ Signer): certificate SHA-256 digest: //p' /tmp/U005_REAL_ANSWER_CERTS.txt | head -1 | tr -d ':' | tr '[:lower:]' '[:upper:]')"
+          test -n "$OBSERVED"
+          if [[ "$OBSERVED" != "$EXPECTED" ]]; then
+            echo "CERTIFICATE_SHA256_MISMATCH expected=$EXPECTED observed=$OBSERVED" >&2
+            exit 23
+          fi
+          echo "CERTIFICATE_SHA256=$OBSERVED" | tee /tmp/U005_REAL_ANSWER_CERTIFICATE_SHA256.txt
+          echo 'U005_REAL_ANSWER_CERTIFICATE_PASS' | tee /tmp/U005_REAL_ANSWER_CERTIFICATE_GATE.txt
+
+          "$AAPT" dump badging "$OUT" | tee /tmp/U005_REAL_ANSWER_BADGING.txt
+          grep -F "package: name='nexus.android' versionCode='45' versionName='0.0.45-u005-beta-realanswer002'" /tmp/U005_REAL_ANSWER_BADGING.txt
+          grep -F "application-label:'NEXUS'" /tmp/U005_REAL_ANSWER_BADGING.txt
+          if grep -Fq 'application-debuggable' /tmp/U005_REAL_ANSWER_BADGING.txt; then
+            echo 'SIGNED_APK_DEBUGGABLE_FAIL' >&2
+            exit 24
+          fi
+
+          "$AAPT" dump permissions "$OUT" | tee /tmp/U005_REAL_ANSWER_PERMISSIONS.txt
+          grep -F "uses-permission: name='android.permission.INTERNET'" /tmp/U005_REAL_ANSWER_PERMISSIONS.txt
+          if grep "uses-permission:" /tmp/U005_REAL_ANSWER_PERMISSIONS.txt | grep -vF "android.permission.INTERNET"; then
+            echo 'SIGNED_APK_UNEXPECTED_PERMISSION_FAIL' >&2
+            exit 25
+          fi
+
+          sha256sum "$OUT" | tee /tmp/U005_REAL_ANSWER_APK_SHA256.txt
+          echo 'U005_REAL_ANSWER_002_PROTECTED_CI_SIGNING_PASS' | tee /tmp/U005_REAL_ANSWER_SIGNING_GATE.txt
+
+      - name: Package non-secret provenance evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p u005-real-answer-evidence
+          cp /tmp/U005_REAL_ANSWER_GIT_PROVENANCE.txt u005-real-answer-evidence/
+          cp /tmp/U005_C002_SHA.txt u005-real-answer-evidence/
+          cp /tmp/U005_C002_VALIDATION.txt u005-real-answer-evidence/
+          cp /tmp/U005_RELEASE_CORE.txt u005-real-answer-evidence/
+          cp /tmp/U005_RELEASE_UX_BASE.txt u005-real-answer-evidence/
+          cp /tmp/U005_REAL_ANSWER_IDENTITY_SHA256.txt u005-real-answer-evidence/
+          cp /tmp/U005_REAL_ANSWER_IDENTITY_GATE.txt u005-real-answer-evidence/
+          cp /tmp/U005_REAL_ANSWER_DERIVE.txt u005-real-answer-evidence/
+          cp /tmp/U005_REAL_ANSWER_STATIC.txt u005-real-answer-evidence/
+          cp /tmp/U005_REAL_ANSWER_RELEASE_SOURCE_POLICY.txt u005-real-answer-evidence/
+          cp /tmp/U005_REAL_ANSWER_CERTS.txt u005-real-answer-evidence/
+          cp /tmp/U005_REAL_ANSWER_CERTIFICATE_SHA256.txt u005-real-answer-evidence/
+          cp /tmp/U005_REAL_ANSWER_CERTIFICATE_GATE.txt u005-real-answer-evidence/
+          cp /tmp/U005_REAL_ANSWER_BADGING.txt u005-real-answer-evidence/
+          cp /tmp/U005_REAL_ANSWER_PERMISSIONS.txt u005-real-answer-evidence/
+          cp /tmp/U005_REAL_ANSWER_APK_SHA256.txt u005-real-answer-evidence/
+          cp /tmp/U005_REAL_ANSWER_SIGNING_GATE.txt u005-real-answer-evidence/
+          printf '%s\n' \
+            'APPLICATION_ID=nexus.android' \
+            'VERSION_CODE=45' \
+            'VERSION_NAME=0.0.45-u005-beta-realanswer002' \
+            'SIGNING_ALIAS=nexus-release' \
+            'ANSWER_SOURCE=PROVIDER_LIVE_ANSWER_TO_QUESTION' \
+            'QUESTION_DISCLOSES_EXPECTED_ANSWER=NO' \
+            'LIVE_ANSWER_RUNTIME_DEVICE_PROOF=PENDING' \
+            'SECRETS_PERSISTED_IN_ARTIFACTS=NO' \
+            'PUBLIC_RELEASE_CREATED=NO' \
+            'NEXT_GATE=REAL_ANSWER_DEVICE_QUALIFICATION' \
+            > u005-real-answer-evidence/U005_REAL_ANSWER_BOUNDARY.txt
+          (cd work && zip -qr ../U005_ANDROID_BETA_002_SOURCE.zip V005_ANDROID_CHROMIUM_WEBVIEW_C002)
+          sha256sum U005_ANDROID_BETA_002_SOURCE.zip | tee u005-real-answer-evidence/U005_REAL_ANSWER_SOURCE_SHA256.txt
+
+      - name: Upload signed APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-U005-ANDROID-BETA-002-REAL-ANSWER-SIGNED
+          path: NEXUS-U005-ANDROID-BETA-002-REAL-ANSWER-SIGNED.apk
+          if-no-files-found: error
+
+      - name: Upload signed source
+        uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-U005-ANDROID-BETA-002-SOURCE
+          path: U005_ANDROID_BETA_002_SOURCE.zip
+          if-no-files-found: error
+
+      - name: Upload real-answer evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-U005-ANDROID-BETA-002-REAL-ANSWER-EVIDENCE
+          path: u005-real-answer-evidence/
+          if-no-files-found: error
