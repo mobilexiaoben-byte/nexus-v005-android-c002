@@ -21,9 +21,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir refbase workbase
-          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d refbase
-          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d workbase
+          mkdir base
+          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d base
           python3 u002monitor001/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/ref/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
           python3 u002monitor001/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
           python3 - <<'PY'
