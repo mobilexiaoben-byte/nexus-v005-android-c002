@@ -1,0 +1,106 @@
+name: NEXUS U002 Final Integration 001
+
+on:
+  push:
+    branches: [u002-final-integration-001]
+    paths:
+      - '.github/workflows/build-u002-final-integration001.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Derive proven monitor reference and final integrated layer
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir refbase workbase
+          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d refbase
+          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d workbase
+          python3 u002monitor001/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/ref/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          python3 u002monitor001/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('work/V005_ANDROID_CHROMIUM_WEBVIEW_C002')
+          p=root/'app/build.gradle.kts'; s=p.read_text()
+          s=s.replace('applicationId = "nexus.android.c002.u002monitor001"','applicationId = "nexus.android.c002"')
+          s=s.replace('versionCode = 29','versionCode = 30')
+          s=s.replace('versionName = "0.0.29-u002-android-monitor001"','versionName = "0.0.30-u002-monitor-integrated"')
+          p.write_text(s)
+          p=root/'app/src/main/AndroidManifest.xml'; s=p.read_text()
+          p.write_text(s.replace('android:label="NEXUS U002 ANDROID MONITOR TEST"','android:label="NEXUS"'))
+          PY
+
+      - name: Final integration non-regression gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          REF='ref/V005_ANDROID_CHROMIUM_WEBVIEW_C002'
+          OUT='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002'
+          cmp "$REF/app/src/main/java/nexus/android/c002/MainActivity.kt" "$OUT/app/src/main/java/nexus/android/c002/MainActivity.kt"
+          cmp "$REF/app/src/main/java/nexus/android/c002/core/U002Monitor.kt" "$OUT/app/src/main/java/nexus/android/c002/core/U002Monitor.kt"
+          cmp "$REF/app/src/main/assets/nexus/chatgpt_provider_c002.js" "$OUT/app/src/main/assets/nexus/chatgpt_provider_c002.js"
+          cmp "$REF/app/src/main/assets/nexus/claude_provider_c002.js" "$OUT/app/src/main/assets/nexus/claude_provider_c002.js"
+          grep -Fq 'applicationId = "nexus.android.c002"' "$OUT/app/build.gradle.kts"
+          grep -Fq 'versionName = "0.0.30-u002-monitor-integrated"' "$OUT/app/build.gradle.kts"
+          grep -Fq 'android:label="NEXUS"' "$OUT/app/src/main/AndroidManifest.xml"
+          grep -Fq 'TERMINAL_RECEIPT_PASS' "$OUT/app/src/main/java/nexus/android/c002/MainActivity.kt"
+          grep -Fq '"canonical_write" to false' "$OUT/app/src/main/java/nexus/android/c002/MainActivity.kt"
+          grep -Fq '"state_mutation_mode" to "NONE"' "$OUT/app/src/main/java/nexus/android/c002/MainActivity.kt"
+          grep -Fq 'u002Monitor.record("FAIL_CLOSED"' "$OUT/app/src/main/java/nexus/android/c002/MainActivity.kt"
+          echo 'U002_FINAL_INTEGRATION_NONREGRESSION_PASS'
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Apply NEXUS icon
+        uses: mobilexiaoben-byte/nexus-v005-android-c002/branding@main
+        with:
+          root: ${{ github.workspace }}/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+
+      - name: Build final integrated APK
+        working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+        run: gradle :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Package final evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/build/outputs/apk/debug/app-debug.apk'
+          cp "$APK" NEXUS-U002-FINAL-INTEGRATION-001-debug.apk
+          sha256sum NEXUS-U002-FINAL-INTEGRATION-001-debug.apk > NEXUS-U002-FINAL-INTEGRATION-001-debug.apk.sha256
+          (cd work && zip -qr ../NEXUS_U002_FINAL_INTEGRATION_001_SOURCE.zip V005_ANDROID_CHROMIUM_WEBVIEW_C002)
+          sha256sum NEXUS_U002_FINAL_INTEGRATION_001_SOURCE.zip > NEXUS_U002_FINAL_INTEGRATION_001_SOURCE.zip.sha256
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-U002-FINAL-INTEGRATION-001-debug
+          path: NEXUS-U002-FINAL-INTEGRATION-001-debug.apk
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-U002-FINAL-INTEGRATION-001-source
+          path: NEXUS_U002_FINAL_INTEGRATION_001_SOURCE.zip
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-U002-FINAL-INTEGRATION-001-evidence
+          path: |
+            NEXUS-U002-FINAL-INTEGRATION-001-debug.apk.sha256
+            NEXUS_U002_FINAL_INTEGRATION_001_SOURCE.zip.sha256
+          if-no-files-found: error
