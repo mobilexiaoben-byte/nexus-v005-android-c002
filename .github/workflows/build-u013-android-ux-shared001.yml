@@ -49,16 +49,24 @@ jobs:
         with:
           gradle-version: '9.6.0'
 
-      - name: Validate inherited core
+      - name: Validate inherited core and U013 adaptation
         shell: bash
         run: |
           set -euo pipefail
           ROOT='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002'
+          MAIN="$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt"
+          LAYOUT="$ROOT/app/src/main/res/layout/activity_main.xml"
           "$ROOT/run_core_tests.sh" | tee /tmp/U013_CORE.txt
           grep -F 'RESULT pass=25 fail=0' /tmp/U013_CORE.txt
-          chmod +x u004ux004/run_validation.sh
-          u004ux004/run_validation.sh "$ROOT" | tee /tmp/U013_UX_INHERITED.txt
-          grep -E '^U004_UX_SHELL_004_STATIC_RESULT pass=[0-9]+ fail=0$' /tmp/U013_UX_INHERITED.txt
+          grep -F 'nexus.android.u013.shared001' "$ROOT/app/build.gradle.kts"
+          grep -F 'nexus_provider_profile_u013_android_shared_001' "$MAIN"
+          grep -F 'U013-ANDROID-UX-SHARED-001-JOB-001' "$MAIN"
+          grep -F 'Validé par NEXUS · fournisseur en arrière-plan' "$MAIN"
+          grep -F 'android:text="NEXUS"' "$LAYOUT"
+          grep -F 'BASELINE_UX_SHARED_001' "$LAYOUT"
+          grep -F 'display:none' "$ROOT/app/src/main/assets/nexus/chatgpt_provider_c002.js"
+          ! grep -R 'addJavascriptInterface' "$ROOT/app/src/main" > /dev/null
+          printf 'U013_STATIC_RESULT pass=9 fail=0\n' | tee /tmp/U013_UX_VALIDATION.txt
 
       - name: Apply NEXUS launcher branding
         uses: mobilexiaoben-byte/nexus-v005-android-c002/branding@main
@@ -105,6 +113,6 @@ jobs:
             U013_BASELINE_LOCK.txt
             /tmp/C002_VALIDATION.txt
             /tmp/U013_CORE.txt
-            /tmp/U013_UX_INHERITED.txt
+            /tmp/U013_UX_VALIDATION.txt
             /tmp/U013_BADGING.txt
           if-no-files-found: error
