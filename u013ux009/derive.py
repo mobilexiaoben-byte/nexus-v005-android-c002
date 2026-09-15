@@ -17,14 +17,13 @@ p.write_text(s)
 p = work / 'app/src/main/java/nexus/android/c002/MainActivity.kt'
 s = p.read_text()
 
-# Force a dedicated Fact Check result screen instead of only updating the small state label.
+# Force a dedicated Fact Check result surface using the already-bound native resultSummary field.
 old_start = '        productState.text = "FACT CHECK O24 · transmission…\\nJob : $jobId"\n'
 new_start = '''        productHome.visibility = View.GONE
         resultPanel.visibility = View.VISIBLE
         webView.visibility = View.GONE
         productState.text = "FACT CHECK O24 · transmission…"
-        resultTitle.text = "FACT CHECK O24"
-        resultBody.text = "Affirmation reçue\\n\\n$rawClaim\\n\\nJob\\n$jobId\\n\\nÉtat\\nTRANSMISSION_O24"
+        resultSummary.text = "FACT CHECK O24\\n\\nAffirmation reçue\\n$rawClaim\\n\\nJob\\n$jobId\\n\\nÉtat\\nTRANSMISSION_O24"
 '''
 assert s.count(old_start) == 1
 s = s.replace(old_start, new_start)
@@ -33,8 +32,7 @@ old_success = '''                        result == "ACCEPTED" && status == "PEND
                             "FACT CHECK O24 · TRANSMIS\\nJob : $returnedJob\\nÉtat : PENDING_RESEARCH\\nRecherche externe en attente"
 '''
 new_success = '''                        result == "ACCEPTED" && status == "PENDING_RESEARCH" && !engineCalled -> {
-                            resultTitle.text = "FACT CHECK O24"
-                            resultBody.text = "Affirmation reçue\\n\\n$rawClaim\\n\\nJob\\n$returnedJob\\n\\nÉtat\\nPENDING_RESEARCH\\n\\nRecherche externe en attente\\n\\nMoteur\\nNON APPELÉ"
+                            resultSummary.text = "FACT CHECK O24\\n\\nAffirmation reçue\\n$rawClaim\\n\\nJob\\n$returnedJob\\n\\nÉtat\\nPENDING_RESEARCH\\n\\nRecherche externe en attente\\n\\nMoteur\\nNON APPELÉ"
                             "FACT CHECK O24 · TRANSMIS"
                         }
 '''
@@ -43,8 +41,7 @@ s = s.replace(old_success, new_success)
 
 old_error = '                        errorCode.isNotBlank() -> "FACT CHECK O24 · $errorCode\\nJob : $returnedJob"\n'
 new_error = '''                        errorCode.isNotBlank() -> {
-                            resultTitle.text = "FACT CHECK O24"
-                            resultBody.text = "Affirmation\\n\\n$rawClaim\\n\\nJob\\n$returnedJob\\n\\nErreur\\n$errorCode"
+                            resultSummary.text = "FACT CHECK O24\\n\\nAffirmation\\n$rawClaim\\n\\nJob\\n$returnedJob\\n\\nErreur\\n$errorCode"
                             "FACT CHECK O24 · $errorCode"
                         }
 '''
@@ -53,8 +50,7 @@ s = s.replace(old_error, new_error)
 
 old_else = '                        else -> "FACT CHECK O24 · $result $status\\nJob : $returnedJob".trim()\n'
 new_else = '''                        else -> {
-                            resultTitle.text = "FACT CHECK O24"
-                            resultBody.text = "Affirmation\\n\\n$rawClaim\\n\\nJob\\n$returnedJob\\n\\nRésultat bridge\\n$result $status"
+                            resultSummary.text = "FACT CHECK O24\\n\\nAffirmation\\n$rawClaim\\n\\nJob\\n$returnedJob\\n\\nRésultat bridge\\n$result $status"
                             "FACT CHECK O24 · $result $status".trim()
                         }
 '''
@@ -62,15 +58,14 @@ assert s.count(old_else) == 1
 s = s.replace(old_else, new_else)
 
 old_catch = '                    productState.text = "FACT CHECK O24 · BRIDGE INDISPONIBLE\\nJob : ${activeFactCheckJobId ?: \"—\"}"\n'
-new_catch = '''                    resultTitle.text = "FACT CHECK O24"
-                    resultBody.text = "Affirmation\\n\\n$rawClaim\\n\\nJob\\n${activeFactCheckJobId ?: "—"}\\n\\nÉtat\\nBRIDGE INDISPONIBLE"
+new_catch = '''                    resultSummary.text = "FACT CHECK O24\\n\\nAffirmation\\n$rawClaim\\n\\nJob\\n${activeFactCheckJobId ?: "—"}\\n\\nÉtat\\nBRIDGE INDISPONIBLE"
                     productState.text = "FACT CHECK O24 · BRIDGE INDISPONIBLE"
 '''
 assert s.count(old_catch) == 1
 s = s.replace(old_catch, new_catch)
 
 for token in [
-    'resultTitle.text = "FACT CHECK O24"',
+    'resultSummary.text = "FACT CHECK O24',
     'Affirmation reçue',
     'Recherche externe en attente',
     'Moteur\\nNON APPELÉ',
@@ -88,6 +83,7 @@ p.write_text(s)
     'FACTCHECK_BRIDGE=O24_ANDROID_WEBAPP_V0.1\n'
     'FACTCHECK_OPERATION=capture\n'
     'FACTCHECK_DEDICATED_RESULT_SCREEN=true\n'
+    'FACTCHECK_RESULT_SURFACE=resultSummary\n'
     'FACTCHECK_VISIBLE_JOB_ID=true\n'
     'FACTCHECK_VISIBLE_STATUS=PENDING_RESEARCH\n'
     'FACTCHECK_VISIBLE_ENGINE_STATE=NOT_CALLED\n'
