@@ -50,8 +50,8 @@ jobs:
           set -euo pipefail
           ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
           mkdir -p "$ROOT/app/src/main/assets/u011"
-          base64 -d u011workbench001/workbench.html.gz.b64 | gunzip > "$ROOT/app/src/main/assets/u011/workbench.html"
-          echo '4336862d5883f53706447ad2f90a795c261a28c2e01f01153a3e60134c676d4c  '"$ROOT/app/src/main/assets/u011/workbench.html" | sha256sum -c -
+          base64 -d u011workbench001/workbench-lite.html.gz.b64 | gunzip > "$ROOT/app/src/main/assets/u011/workbench.html"
+          echo 'df68d9837e60db3e1ec8749b81e0714025752cf45b5f43ff9c100de62e6eb2fb  '"$ROOT/app/src/main/assets/u011/workbench.html" | sha256sum -c -
 
           cat > "$ROOT/app/src/main/java/nexus/android/c002/WorkbenchActivity.kt" <<'KOTLIN'
           package nexus.android.c002
@@ -151,7 +151,7 @@ jobs:
           printf '%s\n' \
             'BASE_RUNTIME=U002-FINAL-INTEGRATION-001 / 0.0.30-u002-monitor-integrated' \
             'WORKBENCH=U011-WORKBENCH-001' \
-            'WORKBENCH_HTML_SHA256=4336862d5883f53706447ad2f90a795c261a28c2e01f01153a3e60134c676d4c' \
+            'WORKBENCH_HTML_SHA256=df68d9837e60db3e1ec8749b81e0714025752cf45b5f43ff9c100de62e6eb2fb' \
             'MAIN_RUNTIME_UNREWRITTEN=true' \
             'GUEST_MAIN_LIVE_MUTATION=false' > U011_WORKBENCH_001_RECEIPT.txt
 
