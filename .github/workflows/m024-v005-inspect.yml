@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
-      - name: Verify baseline and inspect policy contract
+      - name: Inspect all research restrictions
         shell: bash
         run: |
           set -euo pipefail
@@ -21,16 +21,9 @@ jobs:
           rm -rf /tmp/v005 && mkdir /tmp/v005
           unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C003.zip -d /tmp/v005
           ROOT=/tmp/v005/V005_ANDROID_CHROMIUM_WEBVIEW_C002
-          echo '=== TransportContract.kt ==='
-          sed -n '1,190p' "$ROOT/app/src/main/java/nexus/android/c002/core/TransportContract.kt"
-          echo '=== MainActivity relevant ==='
-          sed -n '80,125p' "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt"
-          echo '=== ChatGPT provider relevant ==='
-          sed -n '310,350p' "$ROOT/app/src/main/assets/nexus/chatgpt_provider_c002.js"
-          echo '=== Claude provider relevant ==='
-          sed -n '305,345p' "$ROOT/app/src/main/assets/nexus/claude_provider_c002.js"
-          echo '=== Core tests ==='
-          sed -n '1,80p' "$ROOT/core-tests/TestMain.kt"
-          echo '=== Existing validation ==='
-          chmod +x "$ROOT/run_validation.sh" "$ROOT/run_core_tests.sh"
-          "$ROOT/run_validation.sh"
+          for f in "$ROOT/app/src/main/assets/nexus/chatgpt_provider_c002.js" "$ROOT/app/src/main/assets/nexus/claude_provider_c002.js"; do
+            echo "=== $f research/prompt matches ==="
+            grep -n -B 8 -A 12 -Ei 'browse|research|frozen package|supplied frozen|external_research' "$f" || true
+          done
+          echo '=== Static scripts research matches ==='
+          grep -RIn -E 'EXTERNAL_RESEARCH_FORBIDDEN|external_research|externalResearch' "$ROOT" --exclude='*.class' --exclude-dir=.gradle || true
