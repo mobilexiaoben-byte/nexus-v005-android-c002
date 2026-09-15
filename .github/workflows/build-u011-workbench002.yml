@@ -1,0 +1,139 @@
+name: NEXUS U011 Workbench 002
+
+on:
+  push:
+    branches: [u011-apk-workbench-u002-002]
+    paths:
+      - '.github/workflows/build-u011-workbench002.yml'
+      - 'u011workbench002/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Derive exact U002 final Android runtime base
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf base work
+          mkdir base
+          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d base
+          python3 u002monitor001/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          sha256sum "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt" | tee /tmp/u002_main_before.sha256
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('work/V005_ANDROID_CHROMIUM_WEBVIEW_C002')
+          p=root/'app/build.gradle.kts'; s=p.read_text()
+          s=s.replace('applicationId = "nexus.android.c002.u002monitor001"','applicationId = "nexus.android.c002.u011workbench002"')
+          s=s.replace('versionCode = 29','versionCode = 32')
+          s=s.replace('versionName = "0.0.29-u002-android-monitor001"','versionName = "0.0.32-u011-workbench002"')
+          p.write_text(s)
+          p=root/'app/src/main/AndroidManifest.xml'; s=p.read_text()
+          s=s.replace('android:label="NEXUS U002 ANDROID MONITOR TEST"','android:label="NEXUS U-011 Workbench 002"')
+          p.write_text(s)
+          PY
+          grep -Fq 'TERMINAL_RECEIPT_PASS' "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt"
+          grep -Fq '"canonical_write" to false' "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt"
+          grep -Fq '"state_mutation_mode" to "NONE"' "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt"
+          echo 'U002_FINAL_RUNTIME_BASE_PRESENT'
+
+      - name: Install Workbench 002 UI and ChatGPT correlated runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          mkdir -p "$ROOT/app/src/main/assets/u011"
+
+          base64 -d u011workbench001/workbench-lite.html.gz.b64 | gunzip > "$ROOT/app/src/main/assets/u011/workbench.html"
+          echo 'df68d9837e60db3e1ec8749b81e0714025752cf45b5f43ff9c100de62e6eb2fb  '"$ROOT/app/src/main/assets/u011/workbench.html" | sha256sum -c -
+          python3 u011workbench002/patch_workbench.py "$ROOT/app/src/main/assets/u011/workbench.html"
+          echo 'a0b4098e9390cfaf490849eb8175c52f0b22070a39b72935055a56dc4b97afc9  '"$ROOT/app/src/main/assets/u011/workbench.html" | sha256sum -c -
+
+          cp "$ROOT/app/src/main/assets/nexus/chatgpt_provider_c002.js" "$ROOT/app/src/main/assets/u011/chatgpt_workbench_u011.js"
+          python3 u011workbench002/patch_chatgpt_adapter.py "$ROOT/app/src/main/assets/u011/chatgpt_workbench_u011.js"
+          echo '8ded069a45483a3e8275966d7b1c468589e657ad80424b8a798c55d2b628baee  '"$ROOT/app/src/main/assets/u011/chatgpt_workbench_u011.js" | sha256sum -c -
+          node --check "$ROOT/app/src/main/assets/u011/chatgpt_workbench_u011.js"
+
+          cp u011workbench002/WorkbenchActivity.kt "$ROOT/app/src/main/java/nexus/android/c002/WorkbenchActivity.kt"
+          cp u011workbench002/WorkbenchRuntimeActivity.kt "$ROOT/app/src/main/java/nexus/android/c002/WorkbenchRuntimeActivity.kt"
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/src/main/AndroidManifest.xml')
+          s=p.read_text()
+          old='''        <activity\n            android:name=".MainActivity"\n            android:exported="true">\n            <intent-filter>\n                <action android:name="android.intent.action.MAIN" />\n                <category android:name="android.intent.category.LAUNCHER" />\n            </intent-filter>\n        </activity>'''
+          if old not in s:
+              raise SystemExit('MAIN_ACTIVITY_LAUNCHER_BLOCK_NOT_FOUND')
+          new='''        <activity\n            android:name=".WorkbenchActivity"\n            android:exported="true">\n            <intent-filter>\n                <action android:name="android.intent.action.MAIN" />\n                <category android:name="android.intent.category.LAUNCHER" />\n            </intent-filter>\n        </activity>\n        <activity\n            android:name=".WorkbenchRuntimeActivity"\n            android:exported="false" />\n        <activity\n            android:name=".MainActivity"\n            android:exported="false" />'''
+          p.write_text(s.replace(old,new))
+          PY
+
+          grep -Fq 'NexusAndroid.runAnalysis' "$ROOT/app/src/main/assets/u011/workbench.html"
+          grep -Fq 'window.NexusWorkbench' "$ROOT/app/src/main/assets/u011/workbench.html"
+          grep -Fq 'NEXUS_U011_CHATGPT_WORKBENCH_V1' "$ROOT/app/src/main/assets/u011/chatgpt_workbench_u011.js"
+          grep -Fq 'class WorkbenchRuntimeActivity' "$ROOT/app/src/main/java/nexus/android/c002/WorkbenchRuntimeActivity.kt"
+          grep -Fq 'SelectedProvider.CHATGPT' "$ROOT/app/src/main/java/nexus/android/c002/WorkbenchRuntimeActivity.kt"
+          grep -Fq 'TERMINAL_RECEIPT_PASS' "$ROOT/app/src/main/java/nexus/android/c002/WorkbenchRuntimeActivity.kt"
+          grep -Fq 'android:name=".WorkbenchActivity"' "$ROOT/app/src/main/AndroidManifest.xml"
+          grep -Fq 'android:name=".WorkbenchRuntimeActivity"' "$ROOT/app/src/main/AndroidManifest.xml"
+
+          sha256sum "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt" | tee /tmp/u002_main_after.sha256
+          diff -u /tmp/u002_main_before.sha256 /tmp/u002_main_after.sha256
+          echo 'U011_WORKBENCH_002_STATIC_INTEGRATION_PASS'
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Apply canonical NEXUS icon
+        uses: mobilexiaoben-byte/nexus-v005-android-c002/branding@main
+        with:
+          root: ${{ github.workspace }}/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+
+      - name: Build Workbench 002 APK
+        working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+        run: gradle :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Package candidate and evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/build/outputs/apk/debug/app-debug.apk'
+          cp "$APK" NEXUS-U011-WORKBENCH-002-debug.apk
+          sha256sum NEXUS-U011-WORKBENCH-002-debug.apk | tee NEXUS-U011-WORKBENCH-002-debug.apk.sha256
+          MAIN_SHA="$(cut -d' ' -f1 /tmp/u002_main_after.sha256)"
+          printf '%s\n' \
+            'BASE_RUNTIME=U002-FINAL-INTEGRATION-001 / derived exact source' \
+            'WORKBENCH=U011-WORKBENCH-002' \
+            'VERSION=0.0.32-u011-workbench002' \
+            'APPLICATION_ID=nexus.android.c002.u011workbench002' \
+            'FLOW=Workbench Analyse -> ChatGPT UI -> correlated Result Pack -> Workbench subject thread' \
+            'WORKBENCH_HTML_SHA256=a0b4098e9390cfaf490849eb8175c52f0b22070a39b72935055a56dc4b97afc9' \
+            'CHATGPT_WORKBENCH_ADAPTER_SHA256=8ded069a45483a3e8275966d7b1c468589e657ad80424b8a798c55d2b628baee' \
+            "U002_MAINACTIVITY_SHA256=$MAIN_SHA" \
+            'MAIN_RUNTIME_UNREWRITTEN=true' \
+            'STATIC_INTEGRATION=PASS' \
+            'DEVICE_ROUNDTRIP=NOT_YET_PROVEN' \
+            'GUEST_MAIN_LIVE_MUTATION=false' > U011_WORKBENCH_002_RECEIPT.txt
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-U011-WORKBENCH-002-debug
+          path: |
+            NEXUS-U011-WORKBENCH-002-debug.apk
+            NEXUS-U011-WORKBENCH-002-debug.apk.sha256
+            U011_WORKBENCH_002_RECEIPT.txt
+          if-no-files-found: error
