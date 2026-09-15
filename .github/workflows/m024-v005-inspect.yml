@@ -21,10 +21,16 @@ jobs:
           rm -rf /tmp/v005 && mkdir /tmp/v005
           unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C003.zip -d /tmp/v005
           ROOT=/tmp/v005/V005_ANDROID_CHROMIUM_WEBVIEW_C002
-          echo '=== externalResearch matches ==='
-          grep -RIn --exclude-dir=.gradle --exclude='*.class' -E 'externalResearch|ANDROID_EXTERNAL_RESEARCH_FORBIDDEN|external_research' "$ROOT" || true
-          echo '=== TransportContract files ==='
-          find "$ROOT" -type f -name '*TransportContract*' -print
+          echo '=== TransportContract.kt ==='
+          sed -n '1,190p' "$ROOT/app/src/main/java/nexus/android/c002/core/TransportContract.kt"
+          echo '=== MainActivity relevant ==='
+          sed -n '80,125p' "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt"
+          echo '=== ChatGPT provider relevant ==='
+          sed -n '310,350p' "$ROOT/app/src/main/assets/nexus/chatgpt_provider_c002.js"
+          echo '=== Claude provider relevant ==='
+          sed -n '305,345p' "$ROOT/app/src/main/assets/nexus/claude_provider_c002.js"
+          echo '=== Core tests ==='
+          sed -n '1,80p' "$ROOT/core-tests/TestMain.kt"
           echo '=== Existing validation ==='
           chmod +x "$ROOT/run_validation.sh" "$ROOT/run_core_tests.sh"
           "$ROOT/run_validation.sh"
