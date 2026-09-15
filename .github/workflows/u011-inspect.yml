@@ -1,0 +1,40 @@
+name: U011 inspect Android C003 baseline
+
+on:
+  push:
+    branches: [u011-apk-workbench-001]
+    paths: ['.github/workflows/u011-inspect.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: Extract C003
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir extracted
+          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C003.zip -d extracted
+          ROOT="$GITHUB_WORKSPACE/extracted/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          echo "ROOT=$ROOT"
+          test -f "$ROOT/settings.gradle.kts"
+          echo '=== PROJECT ROOT ==='
+          find "$ROOT" -maxdepth 3 -type f | sort | sed "s#^$ROOT/##" | head -300
+          echo '=== MAIN SOURCES ==='
+          find "$ROOT/app/src/main" -maxdepth 8 -type f | sort | sed "s#^$ROOT/##" | head -400
+          echo '=== ACTIVITY / WEBVIEW HITS ==='
+          grep -RInE 'class .*Activity|WebView|loadUrl|setContentView|android.webkit|MainActivity' "$ROOT/app/src/main" || true
+          echo '=== MANIFEST ==='
+          cat "$ROOT/app/src/main/AndroidManifest.xml"
+          echo '=== BUILD.GRADLE.KTS ==='
+          cat "$ROOT/app/build.gradle.kts"
+          echo '=== JAVA/KOTLIN TEXT ==='
+          while IFS= read -r f; do
+            echo "--- FILE: ${f#$ROOT/} ---"
+            sed -n '1,260p' "$f"
+          done < <(find "$ROOT/app/src/main" -type f \( -name '*.java' -o -name '*.kt' \) | sort)
