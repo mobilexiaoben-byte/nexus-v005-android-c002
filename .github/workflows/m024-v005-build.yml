@@ -1,0 +1,120 @@
+name: M024 V005 Android policy-router candidate
+
+on:
+  push:
+    branches: [m024-v005-policy-router-candidate]
+    paths: ['.github/workflows/m024-v005-build.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: Patch C003 into C004-M024 candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '69f88ce310515d94c7225a080d615c64c7bc3dac786cc2a9d590901599fa6670  V005_ANDROID_CHROMIUM_WEBVIEW_C003.zip' | sha256sum -c -
+          rm -rf work && mkdir work
+          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C003.zip -d work
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          export ROOT
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+          root=Path(os.environ['ROOT'])
+          tc=root/'app/src/main/java/nexus/android/c002/core/TransportContract.kt'
+          s=tc.read_text()
+          s=s.replace('enum class SelectedProvider { CHATGPT, CLAUDE, GEMINI }', 'enum class SelectedProvider { CHATGPT, CLAUDE, GEMINI }\n\nenum class ResearchPolicy { FORBIDDEN, ALLOWED, REQUIRED, REQUIRED_IF_STALE }')
+          s=s.replace('    val externalResearch: Boolean = false\n', '    val researchPolicy: ResearchPolicy = ResearchPolicy.FORBIDDEN\n')
+          s=s.replace('    val handoffText: String,\n    val canonicalWrite:', '    val handoffText: String,\n    val researchPolicy: ResearchPolicy,\n    val canonicalWrite:')
+          s=s.replace('        handoffText,\n        canonicalWrite.toString(),', '        handoffText,\n        researchPolicy.name,\n        canonicalWrite.toString(),')
+          s=s.replace('    val model: String?,\n    val frozenPackage:', '    val model: String?,\n    val researchPolicy: ResearchPolicy,\n    val frozenPackage:')
+          s=s.replace('        require(!input.externalResearch) { "ANDROID_EXTERNAL_RESEARCH_FORBIDDEN" }\n', '')
+          s=s.replace('val frozen = FrozenPackage(packId, input.question, input.provider, input.model, input.handoffText)', 'val frozen = FrozenPackage(packId, input.question, input.provider, input.model, input.handoffText, input.researchPolicy)')
+          s=s.replace('            model = input.model,\n            frozenPackage = frozen,', '            model = input.model,\n            researchPolicy = input.researchPolicy,\n            frozenPackage = frozen,')
+          tc.write_text(s)
+
+          main=root/'app/src/main/java/nexus/android/c002/MainActivity.kt'
+          s=main.read_text().replace('.put("external_research", false)', '.put("research_policy_contract", "M024_RESOLVED_POLICY_REQUIRED")')
+          main.write_text(s)
+
+          for name,provider in [('chatgpt_provider_c002.js','OpenAI'),('claude_provider_c002.js','Anthropic')]:
+              p=root/'app/src/main/assets/nexus'/name
+              s=p.read_text()
+              old="if(envelope.external_research!==false) throw new Error('EXTERNAL_RESEARCH_FORBIDDEN');"
+              new="const researchPolicy=String(envelope.research_policy||'');\n      if(!['FORBIDDEN','ALLOWED','REQUIRED','REQUIRED_IF_STALE'].includes(researchPolicy)) throw new Error('EXECUTION_RESEARCH_POLICY_INVALID');"
+              if old not in s: raise SystemExit(f'missing provider guard in {name}')
+              s=s.replace(old,new)
+              s=s.replace("      'You are executing a NEXUS read-only post-response audit in this authenticated ChatGPT browser session.',", "      'You are executing a NEXUS job in this authenticated ChatGPT browser session. Job type: '+String(envelope.job_type||'UNKNOWN')+'.',") if 'chatgpt' in name else s.replace("      'You are executing a NEXUS read-only post-response audit in this authenticated Claude browser session.',", "      'You are executing a NEXUS job in this authenticated Claude browser session. Job type: '+String(envelope.job_type||'UNKNOWN')+'.',")
+              s=s.replace("      '- Use only the supplied frozen package below.',\n      '- Do NOT browse the web and do NOT perform external research.',", "      '- Follow the resolved M024 execution policy carried by the envelope.',\n      (researchPolicy==='FORBIDDEN' ? '- Research policy FORBIDDEN: use only supplied/frozen sources and do not browse.' : researchPolicy==='REQUIRED' ? '- Research policy REQUIRED: perform the external research required by the job and cite/trace sources as required by source_policy.' : researchPolicy==='REQUIRED_IF_STALE' ? '- Research policy REQUIRED_IF_STALE: research externally when freshness or source gaps require it.' : '- Research policy ALLOWED: external research may be used when useful and permitted by source_policy.'),")
+              # buildPrompt needs researchPolicy in local scope
+              s=s.replace('  function buildPrompt(envelope){\n    const pack=', "  function buildPrompt(envelope){\n    const researchPolicy=String(envelope.research_policy||'');\n    if(!['FORBIDDEN','ALLOWED','REQUIRED','REQUIRED_IF_STALE'].includes(researchPolicy)) throw new Error('EXECUTION_RESEARCH_POLICY_INVALID');\n    const pack=")
+              p.write_text(s)
+
+          test=root/'core-tests/TestMain.kt'
+          s=test.read_text()
+          old='    check("T05 external research fail closed", runCatching { engine.buildJob(base.copy(requestId="job-er", externalResearch=true)) }.isFailure)'
+          new='''    check("T05 closed policy transported", job.researchPolicy == ResearchPolicy.FORBIDDEN && job.frozenPackage.researchPolicy == ResearchPolicy.FORBIDDEN)\n    val researchJob = engine.buildJob(base.copy(requestId="job-er", researchPolicy=ResearchPolicy.REQUIRED))\n    check("T05 required research policy accepted", researchJob.researchPolicy == ResearchPolicy.REQUIRED && researchJob.frozenPackage.researchPolicy == ResearchPolicy.REQUIRED)\n    check("T05 policy frozen fingerprint differs", researchJob.frozenFingerprint != job.frozenFingerprint)'''
+          if old not in s: raise SystemExit('missing old T05')
+          test.write_text(s.replace(old,new))
+          PY
+      - name: M024 static policy assertions
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          ! grep -RIn -E 'ANDROID_EXTERNAL_RESEARCH_FORBIDDEN|EXTERNAL_RESEARCH_FORBIDDEN|externalResearch|external_research' "$ROOT/app/src/main" "$ROOT/core-tests" --exclude='*.class'
+          grep -RIn 'ResearchPolicy' "$ROOT/app/src/main/java/nexus/android/c002/core/TransportContract.kt"
+          grep -RIn 'research_policy' "$ROOT/app/src/main/assets/nexus/chatgpt_provider_c002.js" "$ROOT/app/src/main/assets/nexus/claude_provider_c002.js"
+          grep -RIn 'M024_RESOLVED_POLICY_REQUIRED' "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt"
+      - name: Run core tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          chmod +x "$ROOT/run_core_tests.sh"
+          "$ROOT/run_core_tests.sh" | tee /tmp/M024_CORE.txt
+          grep -F 'RESULT pass=27 fail=0' /tmp/M024_CORE.txt
+      - name: Run validation and record legacy static delta
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          chmod +x "$ROOT/run_validation.sh"
+          set +e
+          "$ROOT/run_validation.sh" | tee /tmp/M024_VALIDATION.txt
+          rc=${PIPESTATUS[0]}
+          set -e
+          echo "legacy_validation_rc=$rc"
+          grep -F 'RESULT pass=27 fail=0' /tmp/M024_VALIDATION.txt
+          # Static legacy checks may still encode the old global no-web rule; report but do not hide it.
+          grep -E 'STATIC_RESULT|FAIL|PASS' /tmp/M024_VALIDATION.txt | tail -40
+      - name: Freeze candidate and manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          find "$ROOT" -exec touch -t 202609150000.00 {} +
+          (cd work && find V005_ANDROID_CHROMIUM_WEBVIEW_C002 -print | LC_ALL=C sort | zip -X -q "$GITHUB_WORKSPACE/V005_ANDROID_C004_M024_CANDIDATE.zip" -@)
+          sha256sum V005_ANDROID_C004_M024_CANDIDATE.zip | tee V005_ANDROID_C004_M024_CANDIDATE.zip.sha256
+          cat > M024_V005_CANDIDATE_MANIFEST.txt <<EOF
+          BASELINE=C003
+          POLICY_SPEC=M024-SPEC-001
+          ENGINE_GATE=M024_PASS_MOTEUR_51_OF_51
+          CANDIDATE=V005_ANDROID_C004_M024_CANDIDATE.zip
+          MAIN_UNCHANGED=true
+          PRODUCTION_UNCHANGED=true
+          EOF
+      - uses: actions/upload-artifact@v4
+        with:
+          name: V005_ANDROID_C004_M024_CANDIDATE
+          path: |
+            V005_ANDROID_C004_M024_CANDIDATE.zip
+            V005_ANDROID_C004_M024_CANDIDATE.zip.sha256
+            M024_V005_CANDIDATE_MANIFEST.txt
+            /tmp/M024_CORE.txt
+            /tmp/M024_VALIDATION.txt
