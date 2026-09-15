@@ -1,0 +1,165 @@
+name: NEXUS U011 Workbench 001
+
+on:
+  push:
+    branches: [u011-apk-workbench-u002-001]
+    paths:
+      - '.github/workflows/build-u011-workbench001.yml'
+      - 'u011workbench001/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Derive exact U002 final Android base
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf base work
+          mkdir base
+          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d base
+          python3 u002monitor001/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('work/V005_ANDROID_CHROMIUM_WEBVIEW_C002')
+          p=root/'app/build.gradle.kts'; s=p.read_text()
+          s=s.replace('applicationId = "nexus.android.c002.u002monitor001"','applicationId = "nexus.android.c002"')
+          s=s.replace('versionCode = 29','versionCode = 31')
+          s=s.replace('versionName = "0.0.29-u002-android-monitor001"','versionName = "0.0.31-u011-workbench001"')
+          p.write_text(s)
+          p=root/'app/src/main/AndroidManifest.xml'; s=p.read_text()
+          s=s.replace('android:label="NEXUS U002 ANDROID MONITOR TEST"','android:label="NEXUS U-011 Workbench"')
+          p.write_text(s)
+          PY
+          grep -Fq 'TERMINAL_RECEIPT_PASS' "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt"
+          grep -Fq '"canonical_write" to false' "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt"
+          grep -Fq '"state_mutation_mode" to "NONE"' "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt"
+          echo 'U002_FINAL_RUNTIME_BASE_PRESENT'
+
+      - name: Install U011 Workbench UI and launcher
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          mkdir -p "$ROOT/app/src/main/assets/u011"
+          base64 -d u011workbench001/workbench.html.gz.b64 | gunzip > "$ROOT/app/src/main/assets/u011/workbench.html"
+          echo '4336862d5883f53706447ad2f90a795c261a28c2e01f01153a3e60134c676d4c  '"$ROOT/app/src/main/assets/u011/workbench.html" | sha256sum -c -
+
+          cat > "$ROOT/app/src/main/java/nexus/android/c002/WorkbenchActivity.kt" <<'KOTLIN'
+          package nexus.android.c002
+
+          import android.app.Activity
+          import android.content.Intent
+          import android.os.Bundle
+          import android.webkit.JavascriptInterface
+          import android.webkit.WebResourceRequest
+          import android.webkit.WebSettings
+          import android.webkit.WebView
+          import android.webkit.WebViewClient
+
+          class WorkbenchActivity : Activity() {
+              private lateinit var webView: WebView
+
+              override fun onCreate(savedInstanceState: Bundle?) {
+                  super.onCreate(savedInstanceState)
+                  webView = WebView(this)
+                  setContentView(webView)
+                  with(webView.settings) {
+                      javaScriptEnabled = true
+                      domStorageEnabled = true
+                      allowFileAccess = true
+                      allowContentAccess = false
+                      mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+                      setSupportMultipleWindows(false)
+                  }
+                  WebView.setWebContentsDebuggingEnabled(false)
+                  webView.addJavascriptInterface(AndroidBridge(), "NexusAndroid")
+                  webView.webViewClient = object : WebViewClient() {
+                      override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                          val url = request.url.toString()
+                          return !url.startsWith("file:///android_asset/u011/")
+                      }
+                  }
+                  webView.loadUrl("file:///android_asset/u011/workbench.html")
+              }
+
+              override fun onBackPressed() {
+                  if (::webView.isInitialized && webView.canGoBack()) webView.goBack() else super.onBackPressed()
+              }
+
+              inner class AndroidBridge {
+                  @JavascriptInterface
+                  fun openProviderRuntime() {
+                      runOnUiThread {
+                          startActivity(Intent(this@WorkbenchActivity, MainActivity::class.java))
+                      }
+                  }
+              }
+          }
+          KOTLIN
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/src/main/AndroidManifest.xml')
+          s=p.read_text()
+          old='''        <activity\n            android:name=".MainActivity"\n            android:exported="true">\n            <intent-filter>\n                <action android:name="android.intent.action.MAIN" />\n                <category android:name="android.intent.category.LAUNCHER" />\n            </intent-filter>\n        </activity>'''
+          if old not in s:
+              raise SystemExit('MAIN_ACTIVITY_LAUNCHER_BLOCK_NOT_FOUND')
+          new='''        <activity\n            android:name=".WorkbenchActivity"\n            android:exported="true">\n            <intent-filter>\n                <action android:name="android.intent.action.MAIN" />\n                <category android:name="android.intent.category.LAUNCHER" />\n            </intent-filter>\n        </activity>\n        <activity\n            android:name=".MainActivity"\n            android:exported="false" />'''
+          p.write_text(s.replace(old,new))
+          PY
+
+          grep -Fq 'android:name=".WorkbenchActivity"' "$ROOT/app/src/main/AndroidManifest.xml"
+          grep -Fq 'android:name=".MainActivity"' "$ROOT/app/src/main/AndroidManifest.xml"
+          grep -Fq 'NexusAndroid.openProviderRuntime' "$ROOT/app/src/main/assets/u011/workbench.html"
+          grep -Fq 'class WorkbenchActivity' "$ROOT/app/src/main/java/nexus/android/c002/WorkbenchActivity.kt"
+          echo 'U011_WORKBENCH_INTEGRATION_STATIC_PASS'
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Apply canonical NEXUS icon
+        uses: mobilexiaoben-byte/nexus-v005-android-c002/branding@main
+        with:
+          root: ${{ github.workspace }}/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+
+      - name: Build U011 Workbench APK
+        working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+        run: gradle :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Package evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/build/outputs/apk/debug/app-debug.apk'
+          cp "$APK" NEXUS-U011-WORKBENCH-001-debug.apk
+          sha256sum NEXUS-U011-WORKBENCH-001-debug.apk | tee NEXUS-U011-WORKBENCH-001-debug.apk.sha256
+          printf '%s\n' \
+            'BASE_RUNTIME=U002-FINAL-INTEGRATION-001 / 0.0.30-u002-monitor-integrated' \
+            'WORKBENCH=U011-WORKBENCH-001' \
+            'WORKBENCH_HTML_SHA256=4336862d5883f53706447ad2f90a795c261a28c2e01f01153a3e60134c676d4c' \
+            'MAIN_RUNTIME_UNREWRITTEN=true' \
+            'GUEST_MAIN_LIVE_MUTATION=false' > U011_WORKBENCH_001_RECEIPT.txt
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-U011-WORKBENCH-001-debug
+          path: |
+            NEXUS-U011-WORKBENCH-001-debug.apk
+            NEXUS-U011-WORKBENCH-001-debug.apk.sha256
+            U011_WORKBENCH_001_RECEIPT.txt
+          if-no-files-found: error
