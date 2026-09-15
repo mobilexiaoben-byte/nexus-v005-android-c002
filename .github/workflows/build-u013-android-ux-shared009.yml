@@ -39,6 +39,7 @@ jobs:
           ROOT='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002'
           grep -F 'PLATFORM_ADAPTER=U013_ANDROID_UX_SHARED_009' "$ROOT/U013_BASELINE_LOCK.txt"
           grep -F 'FACTCHECK_DEDICATED_RESULT_SCREEN=true' "$ROOT/U013_BASELINE_LOCK.txt"
+          grep -F 'FACTCHECK_RESULT_SURFACE=resultSummary' "$ROOT/U013_BASELINE_LOCK.txt"
           grep -F 'FACTCHECK_VISIBLE_JOB_ID=true' "$ROOT/U013_BASELINE_LOCK.txt"
           grep -F 'FACTCHECK_VISIBLE_STATUS=PENDING_RESEARCH' "$ROOT/U013_BASELINE_LOCK.txt"
 
@@ -60,7 +61,7 @@ jobs:
           "$ROOT/run_core_tests.sh" | tee /tmp/U013_CORE.txt
           grep -F 'RESULT pass=25 fail=0' /tmp/U013_CORE.txt
           grep -F 'nexus.android.u013.shared009' "$ROOT/app/build.gradle.kts"
-          grep -F 'resultTitle.text = "FACT CHECK O24"' "$MAIN"
+          grep -F 'resultSummary.text = "FACT CHECK O24' "$MAIN"
           grep -F 'Affirmation reçue' "$MAIN"
           grep -F 'PENDING_RESEARCH' "$MAIN"
           grep -F 'NON APPELÉ' "$MAIN"
