@@ -1,0 +1,30 @@
+name: M024 V005 policy inspection
+
+on:
+  push:
+    branches: [m024-v005-policy-router-candidate]
+    paths: ['.github/workflows/m024-v005-inspect.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: Verify baseline and inspect policy contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '69f88ce310515d94c7225a080d615c64c7bc3dac786cc2a9d590901599fa6670  V005_ANDROID_CHROMIUM_WEBVIEW_C003.zip' | sha256sum -c -
+          rm -rf /tmp/v005 && mkdir /tmp/v005
+          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C003.zip -d /tmp/v005
+          ROOT=/tmp/v005/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+          echo '=== externalResearch matches ==='
+          grep -RIn --exclude-dir=.gradle --exclude='*.class' -E 'externalResearch|ANDROID_EXTERNAL_RESEARCH_FORBIDDEN|external_research' "$ROOT" || true
+          echo '=== TransportContract files ==='
+          find "$ROOT" -type f -name '*TransportContract*' -print
+          echo '=== Existing validation ==='
+          chmod +x "$ROOT/run_validation.sh" "$ROOT/run_core_tests.sh"
+          "$ROOT/run_validation.sh"
