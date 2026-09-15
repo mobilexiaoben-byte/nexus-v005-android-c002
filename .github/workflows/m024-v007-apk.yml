@@ -1,0 +1,99 @@
+name: M024 V007 device APK candidate
+
+on:
+  push:
+    branches: [m024-v005-policy-router-candidate]
+    paths: ['.github/workflows/m024-v007-apk.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.6.0'
+      - name: Rebuild C004-M024 source from frozen C003
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '69f88ce310515d94c7225a080d615c64c7bc3dac786cc2a9d590901599fa6670  V005_ANDROID_CHROMIUM_WEBVIEW_C003.zip' | sha256sum -c -
+          rm -rf extracted && mkdir extracted
+          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C003.zip -d extracted
+          ROOT="$GITHUB_WORKSPACE/extracted/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          export ROOT
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+          root=Path(os.environ['ROOT'])
+          tc=root/'app/src/main/java/nexus/android/c002/core/TransportContract.kt'
+          s=tc.read_text()
+          s=s.replace('enum class SelectedProvider { CHATGPT, CLAUDE, GEMINI }', 'enum class SelectedProvider { CHATGPT, CLAUDE, GEMINI }\n\nenum class ResearchPolicy { FORBIDDEN, ALLOWED, REQUIRED, REQUIRED_IF_STALE }')
+          s=s.replace('    val externalResearch: Boolean = false\n', '    val researchPolicy: ResearchPolicy = ResearchPolicy.FORBIDDEN\n')
+          s=s.replace('    val handoffText: String,\n    val canonicalWrite:', '    val handoffText: String,\n    val researchPolicy: ResearchPolicy,\n    val canonicalWrite:')
+          s=s.replace('        handoffText,\n        canonicalWrite.toString(),', '        handoffText,\n        researchPolicy.name,\n        canonicalWrite.toString(),')
+          s=s.replace('    val model: String?,\n    val frozenPackage:', '    val model: String?,\n    val researchPolicy: ResearchPolicy,\n    val frozenPackage:')
+          s=s.replace('        require(!input.externalResearch) { "ANDROID_EXTERNAL_RESEARCH_FORBIDDEN" }\n', '')
+          s=s.replace('val frozen = FrozenPackage(packId, input.question, input.provider, input.model, input.handoffText)', 'val frozen = FrozenPackage(packId, input.question, input.provider, input.model, input.handoffText, input.researchPolicy)')
+          s=s.replace('            model = input.model,\n            frozenPackage = frozen,', '            model = input.model,\n            researchPolicy = input.researchPolicy,\n            frozenPackage = frozen,')
+          tc.write_text(s)
+          main=root/'app/src/main/java/nexus/android/c002/MainActivity.kt'
+          main.write_text(main.read_text().replace('.put("external_research", false)', '.put("research_policy_contract", "M024_RESOLVED_POLICY_REQUIRED")'))
+          for name in ['chatgpt_provider_c002.js','claude_provider_c002.js']:
+              p=root/'app/src/main/assets/nexus'/name
+              s=p.read_text()
+              s=s.replace("if(envelope.external_research!==false) throw new Error('EXTERNAL_RESEARCH_FORBIDDEN');", "const researchPolicy=String(envelope.research_policy||'');\n      if(!['FORBIDDEN','ALLOWED','REQUIRED','REQUIRED_IF_STALE'].includes(researchPolicy)) throw new Error('EXECUTION_RESEARCH_POLICY_INVALID');")
+              if 'chatgpt' in name:
+                  s=s.replace("      'You are executing a NEXUS read-only post-response audit in this authenticated ChatGPT browser session.',", "      'You are executing a NEXUS job in this authenticated ChatGPT browser session. Job type: '+String(envelope.job_type||'UNKNOWN')+'.',")
+              else:
+                  s=s.replace("      'You are executing a NEXUS read-only post-response audit in this authenticated Claude browser session.',", "      'You are executing a NEXUS job in this authenticated Claude browser session. Job type: '+String(envelope.job_type||'UNKNOWN')+'.',")
+              s=s.replace("      '- Use only the supplied frozen package below.',\n      '- Do NOT browse the web and do NOT perform external research.',", "      '- Follow the resolved M024 execution policy carried by the envelope.',\n      (researchPolicy==='FORBIDDEN' ? '- Research policy FORBIDDEN: use only supplied/frozen sources and do not browse.' : researchPolicy==='REQUIRED' ? '- Research policy REQUIRED: perform the external research required by the job and cite/trace sources as required by source_policy.' : researchPolicy==='REQUIRED_IF_STALE' ? '- Research policy REQUIRED_IF_STALE: research externally when freshness or source gaps require it.' : '- Research policy ALLOWED: external research may be used when useful and permitted by source_policy.'),")
+              s=s.replace('  function buildPrompt(envelope){\n    const pack=', "  function buildPrompt(envelope){\n    const researchPolicy=String(envelope.research_policy||'');\n    if(!['FORBIDDEN','ALLOWED','REQUIRED','REQUIRED_IF_STALE'].includes(researchPolicy)) throw new Error('EXECUTION_RESEARCH_POLICY_INVALID');\n    const pack=")
+              p.write_text(s)
+          test=root/'core-tests/TestMain.kt'
+          s=test.read_text().replace('    check("T05 external research fail closed", runCatching { engine.buildJob(base.copy(requestId="job-er", externalResearch=true)) }.isFailure)', '    check("T05 closed policy transported", job.researchPolicy == ResearchPolicy.FORBIDDEN && job.frozenPackage.researchPolicy == ResearchPolicy.FORBIDDEN)\n    val researchJob = engine.buildJob(base.copy(requestId="job-er", researchPolicy=ResearchPolicy.REQUIRED))\n    check("T05 required research policy accepted", researchJob.researchPolicy == ResearchPolicy.REQUIRED && researchJob.frozenPackage.researchPolicy == ResearchPolicy.REQUIRED)\n    check("T05 policy frozen fingerprint differs", researchJob.frozenFingerprint != job.frozenFingerprint)')
+          test.write_text(s)
+          PY
+      - name: Validate candidate
+        working-directory: extracted/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x run_core_tests.sh run_validation.sh
+          ./run_validation.sh | tee /tmp/V007_M024_VALIDATION.txt
+          grep -F 'RESULT pass=27 fail=0' /tmp/V007_M024_VALIDATION.txt
+          grep -F 'STATIC_RESULT pass=10 fail=0' /tmp/V007_M024_VALIDATION.txt
+      - name: Build APK
+        working-directory: extracted/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle :app:assembleDebug --stacktrace --no-daemon
+      - name: Verify canonical launcher
+        uses: mobilexiaoben-byte/nexus-v005-android-c002/branding/verify-apk@main
+        with:
+          apk: ${{ github.workspace }}/extracted/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/build/outputs/apk/debug/app-debug.apk
+      - name: Prepare APK evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp extracted/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/build/outputs/apk/debug/app-debug.apk NEXUS-V005-C004-M024-debug.apk
+          sha256sum NEXUS-V005-C004-M024-debug.apk | tee NEXUS-V005-C004-M024-debug.apk.sha256
+          printf 'BASELINE=C003\nCANDIDATE=C004-M024\nM024_ENGINE_GATE=PASS_51_OF_51\nV005_CI=PASS_27_PLUS_10\nV007_DEVICE=NOT_YET_EXECUTED\n' > V007_M024_DEVICE_MANIFEST.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NEXUS-V005-C004-M024-debug
+          path: |
+            NEXUS-V005-C004-M024-debug.apk
+            NEXUS-V005-C004-M024-debug.apk.sha256
+            V007_M024_DEVICE_MANIFEST.txt
+            /tmp/V007_M024_VALIDATION.txt
+          if-no-files-found: error
