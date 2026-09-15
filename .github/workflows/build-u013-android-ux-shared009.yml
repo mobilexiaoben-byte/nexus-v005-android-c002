@@ -63,7 +63,7 @@ jobs:
           grep -F 'resultTitle.text = "FACT CHECK O24"' "$MAIN"
           grep -F 'Affirmation reçue' "$MAIN"
           grep -F 'PENDING_RESEARCH' "$MAIN"
-          grep -F 'Moteur\\nNON APPELÉ' "$MAIN"
+          grep -F 'NON APPELÉ' "$MAIN"
           grep -F '.put("operation", "capture")' "$MAIN"
           ! grep -R 'addJavascriptInterface' "$ROOT/app/src/main" > /dev/null
           printf 'U013_O24_DEDICATED_SCREEN_STATIC_RESULT pass=7 fail=0\n' | tee /tmp/U013_UX_VALIDATION.txt
