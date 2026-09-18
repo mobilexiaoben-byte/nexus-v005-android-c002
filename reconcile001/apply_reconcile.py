@@ -39,6 +39,7 @@ tc.write_text(s)
 main = root / 'app/src/main/java/nexus/android/c002/MainActivity.kt'
 s = main.read_text()
 s = s.replace('.put("external_research", false)', '.put("research_policy_contract", "M024_RESOLVED_POLICY_REQUIRED")')
+s = s.replace('externalResearch = false', 'researchPolicy = nexus.android.c002.core.ResearchPolicy.FORBIDDEN')
 assert 'M024_RESOLVED_POLICY_REQUIRED' in s
 for token in ['FACT CHECK O24', 'productFactCheck', 'nexusMenu', 'Choisir son LLM']:
     assert token in s, token
