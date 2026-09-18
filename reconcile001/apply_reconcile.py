@@ -98,8 +98,8 @@ s = s.replace(
     'versionName = "0.0.54-u013-android-ux-shared009-o24-dedicated-screen"',
     'versionName = "0.0.56-v007-m024-u013-authfix2-reconcile002"'
 )
-assert 'nexus.android.v007.m024.u013.reconcile001' in s
-assert '0.0.55-v007-m024-u013-authfix2-reconcile001' in s
+assert 'nexus.android.v007.m024.u013.reconcile002' in s
+assert '0.0.56-v007-m024-u013-authfix2-reconcile002' in s
 gradle.write_text(s)
 
 for name in ['chatgpt_provider_c002.js', 'claude_provider_c002.js']:
