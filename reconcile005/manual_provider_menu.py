@@ -215,18 +215,6 @@ sync_anchor = '    private fun syncProductAuthSurface() {\n'
 assert sync_anchor in s, "syncProductAuthSurface anchor missing"
 s = s.replace(sync_anchor, sync_anchor + '        if (manualProviderConfirmationMode) return\n', 1)
 
-gemini_start = s.index('    private fun handleGeminiStatus(origin: String, message: JSONObject) {')
-gemini_end = s.index('\n    private fun syncProductAuthSurface()', gemini_start)
-gemini_new = '''    private fun handleGeminiStatus(origin: String, message: JSONObject) {
-        if (origin != GEMINI_ORIGIN) return
-        val status = message.optJSONObject("status") ?: return
-        val state = status.optString("state")
-        val reason = status.optString("reason")
-        recordDiagnostic("GEMINI_STATUS", origin, state + ":" + reason)
-    }
-'''
-s = s[:gemini_start] + gemini_new + s[gemini_end:]
-
 analyse_old = '''        findViewById<Button>(R.id.productAnalyse).setOnClickListener {
             if (selectedProvider == null) {
                 productState.text = "Choisissez d’abord un LLM"
