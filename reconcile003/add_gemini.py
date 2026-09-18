@@ -33,6 +33,8 @@ for i, line in enumerate(lines):
             nl = nl.replace(',!', ',', 1)
         elif '== false' in nl:
             nl = nl.replace('== false', '== true', 1)
+        elif 'runCatching' in nl and '.isFailure' in nl:
+            nl = nl.replace('.isFailure', '.isSuccess', 1)
         else:
             raise AssertionError('Unsupported T24 Gemini disabled expression: ' + line)
         lines[i] = nl
