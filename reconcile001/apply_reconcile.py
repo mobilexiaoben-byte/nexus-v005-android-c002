@@ -38,6 +38,51 @@ tc.write_text(s)
 
 main = root / 'app/src/main/java/nexus/android/c002/MainActivity.kt'
 s = main.read_text()
+old_provider = '''    private fun selectChatGptProvider() {
+        selectedProvider = "ChatGPT"
+        productLlmChooser.text = "LLM · ChatGPT"
+        productRunRequested = false
+        if (currentHeadline.startsWith("AUTH REQUIRED")) {
+            providerSelectionRequested = true
+            productState.text = "Connexion à ChatGPT…"
+            productHome.visibility = View.GONE
+            resultPanel.visibility = View.GONE
+            webView.visibility = View.VISIBLE
+        } else {
+            providerSelectionRequested = false
+            webView.visibility = View.GONE
+            productHome.visibility = View.VISIBLE
+            productState.text = "ChatGPT connecté · prêt"
+        }
+    }
+'''
+new_provider = '''    private fun selectChatGptProvider() {
+        selectedProvider = "ChatGPT"
+        productLlmChooser.text = "LLM · ChatGPT"
+        productRunRequested = false
+
+        // RECONCILE-002: never infer authentication from a stale/non-AUTH headline.
+        // If DESCRIBE has not proven an authenticated provider session, expose the
+        // provider WebView and navigate explicitly to ChatGPT.
+        if (!describePassed) {
+            providerSelectionRequested = true
+            productState.text = "Connexion à ChatGPT…"
+            productHome.visibility = View.GONE
+            resultPanel.visibility = View.GONE
+            webView.visibility = View.VISIBLE
+            webView.loadUrl("https://chatgpt.com/")
+        } else {
+            providerSelectionRequested = false
+            webView.visibility = View.GONE
+            productHome.visibility = View.VISIBLE
+            productState.text = "ChatGPT connecté · prêt"
+        }
+    }
+'''
+assert old_provider in s, 'ChatGPT provider selector anchor missing'
+s = s.replace(old_provider, new_provider)
+assert 'if (!describePassed)' in s
+assert 'webView.loadUrl("https://chatgpt.com/")' in s
 s = s.replace('.put("external_research", false)', '.put("research_policy_contract", "M024_RESOLVED_POLICY_REQUIRED")')
 s = s.replace('externalResearch = false', 'researchPolicy = nexus.android.c002.core.ResearchPolicy.FORBIDDEN')
 assert 'M024_RESOLVED_POLICY_REQUIRED' in s
@@ -47,11 +92,11 @@ main.write_text(s)
 
 gradle = root / 'app/build.gradle.kts'
 s = gradle.read_text()
-s = s.replace('applicationId = "nexus.android.u013.shared009"', 'applicationId = "nexus.android.v007.m024.u013.reconcile001"')
-s = s.replace('versionCode = 54', 'versionCode = 55')
+s = s.replace('applicationId = "nexus.android.u013.shared009"', 'applicationId = "nexus.android.v007.m024.u013.reconcile002"')
+s = s.replace('versionCode = 54', 'versionCode = 56')
 s = s.replace(
     'versionName = "0.0.54-u013-android-ux-shared009-o24-dedicated-screen"',
-    'versionName = "0.0.55-v007-m024-u013-authfix2-reconcile001"'
+    'versionName = "0.0.56-v007-m024-u013-authfix2-reconcile002"'
 )
 assert 'nexus.android.v007.m024.u013.reconcile001' in s
 assert '0.0.55-v007-m024-u013-authfix2-reconcile001' in s
@@ -103,11 +148,11 @@ assert 'T05 required research policy accepted' in s
 test.write_text(s)
 
 (root / 'RECONCILIATION_LOCK.txt').write_text(
-    'CANDIDATE=V007_M024_U013_AUTHFIX2_RECONCILE_001\n'
+    'CANDIDATE=V007_M024_U013_AUTHFIX2_RECONCILE_002\n'
     'BASELINE_UX=U013_ANDROID_UX_SHARED_009\n'
     'AUTH_RUNTIME=V007_AUTHFIX2_DEVICE_NOMINAL_PASS_LINEAGE\n'
     'EXECUTION_POLICY=M024_RESOLVED_POLICY_REQUIRED\n'
     'FACTCHECK=U013_O24_DEDICATED_SCREEN_PRESERVED\n'
     'MAIN_PRODUCTION_UNCHANGED=true\n'
-    'DEVICE_PASS=NOT_YET_ACQUIRED\n'
+    'DEVICE_PASS=NOT_YET_ACQUIRED\nPROVIDER_OPENING=EXPLICIT_CHATGPT_LOAD_WHEN_AUTH_NOT_PROVEN\n'
 )
