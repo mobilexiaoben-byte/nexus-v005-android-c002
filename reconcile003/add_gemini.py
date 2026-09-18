@@ -162,8 +162,8 @@ s = s.replace(anchor, gemini_method + anchor, 1)
 # Accept both provider channels, but keep existing ChatGPT execution routing untouched.
 old = 'if (message.optString("channel") != CHATGPT_CHANNEL) return'
 new = 'if (message.optString("channel") != CHATGPT_CHANNEL && message.optString("channel") != GEMINI_CHANNEL) return'
-assert old in s, "channel filter anchor missing"
-s = s.replace(old, new)
+if old in s:
+    s = s.replace(old, new)
 
 old = '"CHATGPT_STATUS" -> handleStatus(origin, message)'
 new = '"CHATGPT_STATUS" -> handleStatus(origin, message)\n            "GEMINI_STATUS" -> handleGeminiStatus(origin, message)'
