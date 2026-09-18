@@ -1,0 +1,118 @@
+name: NEXUS U013 - Android UX Shared 007
+
+on:
+  push:
+    branches: [u013-android-ux-shared-001]
+    paths:
+      - 'u013ux007/**'
+      - '.github/workflows/build-u013-android-ux-shared007.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate frozen C002 baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '26b5b157b487eda3a0c92198066d39beb5e6eb1149a3c4a705b49274c636eed4  V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip' | sha256sum -c -
+          mkdir base
+          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d base
+          cd base/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+          chmod +x run_validation.sh run_core_tests.sh
+          ./run_validation.sh | tee /tmp/C002_VALIDATION.txt
+          grep -F 'RESULT pass=25 fail=0' /tmp/C002_VALIDATION.txt
+          grep -F 'STATIC_RESULT pass=10 fail=0' /tmp/C002_VALIDATION.txt
+
+      - name: Derive U013 O24 bridge candidate 007
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 u013ux007/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          ROOT='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002'
+          grep -F 'PLATFORM_ADAPTER=U013_ANDROID_UX_SHARED_007' "$ROOT/U013_BASELINE_LOCK.txt"
+          grep -F 'FACTCHECK_BRIDGE=O24_ANDROID_WEBAPP_V0.1' "$ROOT/U013_BASELINE_LOCK.txt"
+          grep -F 'FACTCHECK_BRIDGE_OPERATION=capture' "$ROOT/U013_BASELINE_LOCK.txt"
+          grep -F 'FACTCHECK_ENGINE_CALL_ON_CAPTURE=false' "$ROOT/U013_BASELINE_LOCK.txt"
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Validate inherited core and O24 bridge wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002'
+          MAIN="$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt"
+          "$ROOT/run_core_tests.sh" | tee /tmp/U013_CORE.txt
+          grep -F 'RESULT pass=25 fail=0' /tmp/U013_CORE.txt
+          grep -F 'nexus.android.u013.shared007' "$ROOT/app/build.gradle.kts"
+          grep -F 'ensureO24TokenThenCapture(rawClaim)' "$MAIN"
+          grep -F '.put("operation", "capture")' "$MAIN"
+          grep -F 'Fact Check transmis · recherche externe en attente' "$MAIN"
+          grep -F 'AKfycbyuhtzd6uM2o4W8V7BC2RtD5nwOBCkD-qEGns1WccBy5V3Jkn-35I8UaZ1lVYFOkv4r2Q' "$MAIN"
+          grep -F 'FACTCHECK_EXTERNAL_ORCHESTRATOR=NOT_YET_WIRED_FROM_ANDROID' "$ROOT/U013_BASELINE_LOCK.txt"
+          ! grep -R 'addJavascriptInterface' "$ROOT/app/src/main" > /dev/null
+          printf 'U013_O24_BRIDGE_STATIC_RESULT pass=8 fail=0\n' | tee /tmp/U013_UX_VALIDATION.txt
+
+      - name: Apply NEXUS launcher branding
+        uses: mobilexiaoben-byte/nexus-v005-android-c002/branding@main
+        with:
+          root: ${{ github.workspace }}/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+
+      - name: Build APK
+        working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+        shell: bash
+        run: gradle :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Validate APK badging
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/build/outputs/apk/debug/app-debug.apk'
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
+          "$AAPT" dump badging "$APK" | tee /tmp/U013_BADGING.txt
+          grep -F "package: name='nexus.android.u013.shared007'" /tmp/U013_BADGING.txt
+          grep -F "application-label:'NEXUS'" /tmp/U013_BADGING.txt
+
+      - name: Prepare artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT='work/V005_ANDROID_CHROMIUM_WEBVIEW_C002'
+          APK_OUT='NEXUS-U013-ANDROID-UX-SHARED-007-debug.apk'
+          cp "$ROOT/app/build/outputs/apk/debug/app-debug.apk" "$APK_OUT"
+          cp "$ROOT/U013_BASELINE_LOCK.txt" .
+          sha256sum "$APK_OUT" > "$APK_OUT.sha256"
+          cat "$APK_OUT.sha256"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-U013-ANDROID-UX-SHARED-007-debug
+          path: NEXUS-U013-ANDROID-UX-SHARED-007-debug.apk
+          if-no-files-found: error
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-U013-ANDROID-UX-SHARED-007-evidence
+          path: |
+            NEXUS-U013-ANDROID-UX-SHARED-007-debug.apk.sha256
+            U013_BASELINE_LOCK.txt
+            /tmp/C002_VALIDATION.txt
+            /tmp/U013_CORE.txt
+            /tmp/U013_UX_VALIDATION.txt
+            /tmp/U013_BADGING.txt
+          if-no-files-found: error
