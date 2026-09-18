@@ -1,0 +1,212 @@
+name: V007 M024 U013 AUTHFIX2 reconciliation candidate
+
+on:
+  push:
+    branches: [v007-m024-u013-authfix2-reconcile-001]
+    paths:
+      - '.github/workflows/v007-m024-u013-authfix2-reconcile-001.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate frozen C002 baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '26b5b157b487eda3a0c92198066d39beb5e6eb1149a3c4a705b49274c636eed4  V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip' | sha256sum -c -
+          rm -rf base work
+          mkdir -p base work
+          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d base
+          cd base/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+          chmod +x run_validation.sh run_core_tests.sh
+          ./run_validation.sh | tee /tmp/C002_VALIDATION.txt
+          grep -F 'RESULT pass=25 fail=0' /tmp/C002_VALIDATION.txt
+          grep -F 'STATIC_RESULT pass=10 fail=0' /tmp/C002_VALIDATION.txt
+
+      - name: Derive validated U013 SHARED-009 UX and AUTHFIX2 runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 u013ux009/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          grep -F 'PLATFORM_ADAPTER=U013_ANDROID_UX_SHARED_009' "$ROOT/U013_BASELINE_LOCK.txt"
+          grep -F 'FACTCHECK_DEDICATED_RESULT_SCREEN=true' "$ROOT/U013_BASELINE_LOCK.txt"
+          grep -F 'AUTO_AUTH_MENU_PROBE' "$ROOT/app/src/main/assets/nexus/chatgpt_provider_c002.js"
+          grep -F 'productFactCheck' "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt"
+          grep -F 'nexusMenu' "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt"
+
+      - name: Apply M024 resolved research policy contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          export ROOT
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+          root=Path(os.environ['ROOT'])
+
+          tc=root/'app/src/main/java/nexus/android/c002/core/TransportContract.kt'
+          s=tc.read_text()
+          if 'enum class ResearchPolicy' not in s:
+              s=s.replace(
+                  'enum class SelectedProvider { CHATGPT, CLAUDE, GEMINI }',
+                  'enum class SelectedProvider { CHATGPT, CLAUDE, GEMINI }\n\nenum class ResearchPolicy { FORBIDDEN, ALLOWED, REQUIRED, REQUIRED_IF_STALE }'
+              )
+          s=s.replace('    val externalResearch: Boolean = false\n', '    val researchPolicy: ResearchPolicy = ResearchPolicy.FORBIDDEN\n')
+          s=s.replace(
+              '    val handoffText: String,\n    val canonicalWrite:',
+              '    val handoffText: String,\n    val researchPolicy: ResearchPolicy,\n    val canonicalWrite:'
+          )
+          s=s.replace(
+              '        handoffText,\n        canonicalWrite.toString(),',
+              '        handoffText,\n        researchPolicy.name,\n        canonicalWrite.toString(),'
+          )
+          s=s.replace(
+              '    val model: String?,\n    val frozenPackage:',
+              '    val model: String?,\n    val researchPolicy: ResearchPolicy,\n    val frozenPackage:'
+          )
+          s=s.replace('        require(!input.externalResearch) { "ANDROID_EXTERNAL_RESEARCH_FORBIDDEN" }\n', '')
+          s=s.replace(
+              'val frozen = FrozenPackage(packId, input.question, input.provider, input.model, input.handoffText)',
+              'val frozen = FrozenPackage(packId, input.question, input.provider, input.model, input.handoffText, input.researchPolicy)'
+          )
+          s=s.replace(
+              '            model = input.model,\n            frozenPackage = frozen,',
+              '            model = input.model,\n            researchPolicy = input.researchPolicy,\n            frozenPackage = frozen,'
+          )
+          tc.write_text(s)
+
+          main=root/'app/src/main/java/nexus/android/c002/MainActivity.kt'
+          s=main.read_text()
+          s=s.replace('.put("external_research", false)', '.put("research_policy_contract", "M024_RESOLVED_POLICY_REQUIRED")')
+          s=s.replace('applicationId = "nexus.android.u013.shared009"', 'applicationId = "nexus.android.v007.m024.u013.reconcile001"')
+          main.write_text(s)
+
+          gradle=root/'app/build.gradle.kts'
+          s=gradle.read_text()
+          s=s.replace('applicationId = "nexus.android.u013.shared009"', 'applicationId = "nexus.android.v007.m024.u013.reconcile001"')
+          s=s.replace('versionCode = 54', 'versionCode = 55')
+          s=s.replace(
+              'versionName = "0.0.54-u013-android-ux-shared009-o24-dedicated-screen"',
+              'versionName = "0.0.55-v007-m024-u013-authfix2-reconcile001"'
+          )
+          gradle.write_text(s)
+
+          for name,label in [('chatgpt_provider_c002.js','ChatGPT'),('claude_provider_c002.js','Claude')]:
+              p=root/'app/src/main/assets/nexus'/name
+              s=p.read_text()
+              old="if(envelope.external_research!==false) throw new Error('EXTERNAL_RESEARCH_FORBIDDEN');"
+              new="const researchPolicy=String(envelope.research_policy||'');\n      if(!['FORBIDDEN','ALLOWED','REQUIRED','REQUIRED_IF_STALE'].includes(researchPolicy)) throw new Error('EXECUTION_RESEARCH_POLICY_INVALID');"
+              if old in s:
+                  s=s.replace(old,new)
+              if 'function buildPrompt(envelope){\n    const researchPolicy=' not in s:
+                  s=s.replace(
+                      '  function buildPrompt(envelope){\n    const pack=',
+                      "  function buildPrompt(envelope){\n    const researchPolicy=String(envelope.research_policy||'');\n    if(!['FORBIDDEN','ALLOWED','REQUIRED','REQUIRED_IF_STALE'].includes(researchPolicy)) throw new Error('EXECUTION_RESEARCH_POLICY_INVALID');\n    const pack="
+                  )
+              marker="      '- Follow the resolved M024 execution policy carried by the envelope.',"
+              if marker not in s:
+                  anchor="      'FROZEN PACKAGE:',"
+                  policy_lines="""      '- Follow the resolved M024 execution policy carried by the envelope.',\n      (researchPolicy==='FORBIDDEN' ? '- Research policy FORBIDDEN: use only supplied/frozen sources and do not browse.' : researchPolicy==='REQUIRED' ? '- Research policy REQUIRED: perform the external research required by the job and cite/trace sources as required by source_policy.' : researchPolicy==='REQUIRED_IF_STALE' ? '- Research policy REQUIRED_IF_STALE: research externally when freshness or source gaps require it.' : '- Research policy ALLOWED: external research may be used when useful and permitted by source_policy.'),\n"""
+                  if anchor in s:
+                      s=s.replace(anchor, policy_lines+anchor)
+              p.write_text(s)
+
+          test=root/'core-tests/TestMain.kt'
+          s=test.read_text()
+          old='    check("T05 external research fail closed", runCatching { engine.buildJob(base.copy(requestId="job-er", externalResearch=true)) }.isFailure)'
+          new='''    check("T05 closed policy transported", job.researchPolicy == ResearchPolicy.FORBIDDEN && job.frozenPackage.researchPolicy == ResearchPolicy.FORBIDDEN)
+    val researchJob = engine.buildJob(base.copy(requestId="job-er", researchPolicy=ResearchPolicy.REQUIRED))
+    check("T05 required research policy accepted", researchJob.researchPolicy == ResearchPolicy.REQUIRED && researchJob.frozenPackage.researchPolicy == ResearchPolicy.REQUIRED)
+    check("T05 policy frozen fingerprint differs", researchJob.frozenFingerprint != job.frozenFingerprint)'''
+          if old in s:
+              s=s.replace(old,new)
+          test.write_text(s)
+
+          lock=root/'RECONCILIATION_LOCK.txt'
+          lock.write_text(
+              'CANDIDATE=V007_M024_U013_AUTHFIX2_RECONCILE_001\n'
+              'BASELINE_UX=U013_ANDROID_UX_SHARED_009\n'
+              'AUTH_RUNTIME=V007_AUTHFIX2_DEVICE_NOMINAL_PASS_LINEAGE\n'
+              'EXECUTION_POLICY=M024_RESOLVED_POLICY_REQUIRED\n'
+              'FACTCHECK=U013_O24_DEDICATED_SCREEN_PRESERVED\n'
+              'MAIN_PRODUCTION_UNCHANGED=true\n'
+              'DEVICE_PASS=NOT_YET_ACQUIRED\n'
+          )
+          PY
+
+      - name: Validate reconciled source
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          MAIN="$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt"
+          CHAT="$ROOT/app/src/main/assets/nexus/chatgpt_provider_c002.js"
+          TC="$ROOT/app/src/main/java/nexus/android/c002/core/TransportContract.kt"
+          "$ROOT/run_core_tests.sh" | tee /tmp/RECON_CORE.txt
+          grep -F 'RESULT pass=27 fail=0' /tmp/RECON_CORE.txt
+          grep -F 'ResearchPolicy' "$TC"
+          grep -F 'M024_RESOLVED_POLICY_REQUIRED' "$MAIN"
+          grep -F 'AUTO_AUTH_MENU_PROBE' "$CHAT"
+          grep -F 'FACT CHECK O24' "$MAIN"
+          grep -F 'Choisir son LLM' "$MAIN"
+          grep -F 'nexus.android.v007.m024.u013.reconcile001' "$ROOT/app/build.gradle.kts"
+          ! grep -RIn -E 'ANDROID_EXTERNAL_RESEARCH_FORBIDDEN|EXTERNAL_RESEARCH_FORBIDDEN|externalResearch' "$ROOT/app/src/main" "$ROOT/core-tests" --exclude='*.class'
+          printf 'RECON_STATIC_RESULT pass=9 fail=0\n' | tee /tmp/RECON_STATIC.txt
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Apply NEXUS launcher branding
+        uses: mobilexiaoben-byte/nexus-v005-android-c002/branding@main
+        with:
+          root: ${{ github.workspace }}/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+
+      - name: Build APK
+        working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+        shell: bash
+        run: gradle :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Verify APK and prepare evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          APK="$ROOT/app/build/outputs/apk/debug/app-debug.apk"
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
+          "$AAPT" dump badging "$APK" | tee /tmp/RECON_BADGING.txt
+          grep -F "package: name='nexus.android.v007.m024.u013.reconcile001'" /tmp/RECON_BADGING.txt
+          grep -F "application-label:'NEXUS'" /tmp/RECON_BADGING.txt
+          cp "$APK" NEXUS-V007-M024-U013-AUTHFIX2-RECONCILE-001-debug.apk
+          sha256sum NEXUS-V007-M024-U013-AUTHFIX2-RECONCILE-001-debug.apk | tee NEXUS-V007-M024-U013-AUTHFIX2-RECONCILE-001-debug.apk.sha256
+          cp "$ROOT/RECONCILIATION_LOCK.txt" .
+          cp "$ROOT/U013_BASELINE_LOCK.txt" .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NEXUS-V007-M024-U013-AUTHFIX2-RECONCILE-001-debug
+          path: |
+            NEXUS-V007-M024-U013-AUTHFIX2-RECONCILE-001-debug.apk
+            NEXUS-V007-M024-U013-AUTHFIX2-RECONCILE-001-debug.apk.sha256
+            RECONCILIATION_LOCK.txt
+            U013_BASELINE_LOCK.txt
+            /tmp/C002_VALIDATION.txt
+            /tmp/RECON_CORE.txt
+            /tmp/RECON_STATIC.txt
+            /tmp/RECON_BADGING.txt
+          if-no-files-found: error
