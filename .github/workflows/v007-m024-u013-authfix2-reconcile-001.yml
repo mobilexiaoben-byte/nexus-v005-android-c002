@@ -1,10 +1,10 @@
-name: V007 M024 U013 AUTHFIX2 reconciliation candidate
+name: V007 M024 U013 AUTHFIX2 reconciliation candidate 002
 
 on:
   push:
-    branches: [v007-m024-u013-authfix2-reconcile-001]
+    branches: [v007-m024-u013-authfix2-reconcile-002]
     paths:
-      - '.github/workflows/v007-m024-u013-authfix2-reconcile-001.yml'
+      - '.github/workflows/v007-m024-u013-authfix2-reconcile-002.yml'
       - 'reconcile001/**'
   workflow_dispatch:
 
@@ -63,9 +63,11 @@ jobs:
           grep -F 'AUTO_AUTH_MENU_PROBE' "$CHAT"
           grep -F 'FACT CHECK O24' "$MAIN"
           grep -F 'Choisir son LLM' "$MAIN"
-          grep -F 'nexus.android.v007.m024.u013.reconcile001' "$ROOT/app/build.gradle.kts"
+          grep -F 'if (!describePassed)' "$MAIN"
+          grep -F 'webView.loadUrl("https://chatgpt.com/")' "$MAIN"
+          grep -F 'nexus.android.v007.m024.u013.reconcile002' "$ROOT/app/build.gradle.kts"
           ! grep -RIn -E 'ANDROID_EXTERNAL_RESEARCH_FORBIDDEN|EXTERNAL_RESEARCH_FORBIDDEN|externalResearch' "$ROOT/app/src/main" "$ROOT/core-tests" --exclude='*.class'
-          printf 'RECON_STATIC_RESULT pass=9 fail=0\n' | tee /tmp/RECON_STATIC.txt
+          printf 'RECON_STATIC_RESULT pass=11 fail=0\n' | tee /tmp/RECON_STATIC.txt
 
       - uses: actions/setup-java@v5
         with:
@@ -94,19 +96,19 @@ jobs:
           APK="$ROOT/app/build/outputs/apk/debug/app-debug.apk"
           AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
           "$AAPT" dump badging "$APK" | tee /tmp/RECON_BADGING.txt
-          grep -F "package: name='nexus.android.v007.m024.u013.reconcile001'" /tmp/RECON_BADGING.txt
+          grep -F "package: name='nexus.android.v007.m024.u013.reconcile002'" /tmp/RECON_BADGING.txt
           grep -F "application-label:'NEXUS'" /tmp/RECON_BADGING.txt
-          cp "$APK" NEXUS-V007-M024-U013-AUTHFIX2-RECONCILE-001-debug.apk
-          sha256sum NEXUS-V007-M024-U013-AUTHFIX2-RECONCILE-001-debug.apk | tee NEXUS-V007-M024-U013-AUTHFIX2-RECONCILE-001-debug.apk.sha256
+          cp "$APK" NEXUS-V007-M024-U013-AUTHFIX2-RECONCILE-002-debug.apk
+          sha256sum NEXUS-V007-M024-U013-AUTHFIX2-RECONCILE-002-debug.apk | tee NEXUS-V007-M024-U013-AUTHFIX2-RECONCILE-002-debug.apk.sha256
           cp "$ROOT/RECONCILIATION_LOCK.txt" .
           cp "$ROOT/U013_BASELINE_LOCK.txt" .
 
       - uses: actions/upload-artifact@v4
         with:
-          name: NEXUS-V007-M024-U013-AUTHFIX2-RECONCILE-001-debug
+          name: NEXUS-V007-M024-U013-AUTHFIX2-RECONCILE-002-debug
           path: |
-            NEXUS-V007-M024-U013-AUTHFIX2-RECONCILE-001-debug.apk
-            NEXUS-V007-M024-U013-AUTHFIX2-RECONCILE-001-debug.apk.sha256
+            NEXUS-V007-M024-U013-AUTHFIX2-RECONCILE-002-debug.apk
+            NEXUS-V007-M024-U013-AUTHFIX2-RECONCILE-002-debug.apk.sha256
             RECONCILIATION_LOCK.txt
             U013_BASELINE_LOCK.txt
             /tmp/C002_VALIDATION.txt
