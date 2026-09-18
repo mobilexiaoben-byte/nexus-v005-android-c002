@@ -18,6 +18,29 @@ assert old in s, "Gemini disabled policy anchor missing"
 s = s.replace(old, new)
 p.write_text(s)
 
+# The baseline core suite intentionally expected Gemini disabled. This diagnostic candidate
+# explicitly enables Gemini, so invert only that named expectation while preserving all other gates.
+test = root / "core-tests/TestMain.kt"
+ts = test.read_text()
+lines = ts.splitlines()
+changed = False
+for i, line in enumerate(lines):
+    if 'T24 Gemini disabled' in line:
+        nl = line.replace('"T24 Gemini disabled"', '"T24 Gemini enabled diagnostic"')
+        if ', !' in nl:
+            nl = nl.replace(', !', ', ', 1)
+        elif ',!' in nl:
+            nl = nl.replace(',!', ',', 1)
+        elif '== false' in nl:
+            nl = nl.replace('== false', '== true', 1)
+        else:
+            raise AssertionError('Unsupported T24 Gemini disabled expression: ' + line)
+        lines[i] = nl
+        changed = True
+        break
+assert changed, 'T24 Gemini disabled test anchor missing'
+test.write_text('\n'.join(lines) + '\n')
+
 # Allow Gemini as an isolated bridge origin and bounded top-level navigation origin.
 p = root / "app/src/main/java/nexus/android/c002/web/OriginPolicy.kt"
 s = p.read_text()
