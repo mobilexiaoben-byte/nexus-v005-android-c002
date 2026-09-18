@@ -1,6 +1,7 @@
 from pathlib import Path
 import shutil
 import subprocess
+import re
 import sys
 
 repo = Path(sys.argv[1]).resolve()
@@ -137,10 +138,11 @@ assert old in s, "Analyse dispatch gate anchor missing"
 s = s.replace(old, new, 1)
 
 # Accept only the three Android provider channels with DEVICE-PASS lineage.
-old = 'if (message.optString("channel") != CHATGPT_CHANNEL && message.optString("channel") != GEMINI_CHANNEL) return'
-new = 'if (message.optString("channel") != CHATGPT_CHANNEL && message.optString("channel") != GEMINI_CHANNEL && message.optString("channel") != ZAI_CHANNEL) return'
-assert old in s, "bridge channel gate anchor missing"
-s = s.replace(old, new, 1)
+channel_pattern = r'if \(message\.optString\("channel"\) != CHATGPT_CHANNEL(?:\s*&&\s*message\.optString\("channel"\) != GEMINI_CHANNEL)?\)\s*\{?\s*(?:block\("ANDROID_BRIDGE_CHANNEL_MISMATCH"\)\s*\n\s*)?return\s*(?:\})?'
+m = re.search(channel_pattern, s)
+assert m, "bridge channel gate anchor missing"
+replacement = 'if (message.optString("channel") != CHATGPT_CHANNEL && message.optString("channel") != GEMINI_CHANNEL && message.optString("channel") != ZAI_CHANNEL) return'
+s = s[:m.start()] + replacement + s[m.end():]
 
 # Dispatch through the selected validated adapter instead of always ChatGPT.
 anchor = '''    private fun startExecutionProof(origin: String) {
