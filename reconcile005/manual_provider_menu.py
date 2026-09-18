@@ -211,6 +211,8 @@ manual_methods = '''    private fun showLlmChooser(anchorView: View) {
 
 '''
 s = s[:method_start] + manual_methods + s[method_end:]
+# Manual connection mode does not consume DOM-derived Gemini auth status.
+s = s.replace('            "GEMINI_STATUS" -> handleGeminiStatus(origin, message)\n', '')
 sync_anchor = '    private fun syncProductAuthSurface() {\n'
 assert sync_anchor in s, "syncProductAuthSurface anchor missing"
 s = s.replace(sync_anchor, sync_anchor + '        if (manualProviderConfirmationMode) return\n', 1)
