@@ -215,41 +215,6 @@ sync_anchor = '    private fun syncProductAuthSurface() {\n'
 assert sync_anchor in s, "syncProductAuthSurface anchor missing"
 s = s.replace(sync_anchor, sync_anchor + '        if (manualProviderConfirmationMode) return\n', 1)
 
-analyse_old = '''        findViewById<Button>(R.id.productAnalyse).setOnClickListener {
-            if (selectedProvider == null) {
-                productState.text = "Choisissez d’abord un LLM"
-                return@setOnClickListener
-            }
-            productRunRequested = true
-'''
-analyse_new = '''        findViewById<Button>(R.id.productAnalyse).setOnClickListener {
-            if (selectedProvider == null) {
-                productState.text = "Choisissez d’abord un LLM"
-                return@setOnClickListener
-            }
-            if (!providerConfirmedByUser) {
-                productState.text = "${selectedProvider} · confirmez d’abord ⋮ → ${selectedProvider} → Connecté"
-                return@setOnClickListener
-            }
-            productRunRequested = true
-'''
-assert analyse_old in s, "analyse manual confirmation anchor missing"
-s = s.replace(analyse_old, analyse_new, 1)
-
-fact_old = '''        findViewById<Button>(R.id.productFactCheck).setOnClickListener {
-            if (selectedProvider == null) {
-                productState.text = "Choisissez d’abord un LLM"
-            } else if (currentHeadline.startsWith("AUTH REQUIRED")) {
-'''
-fact_new = '''        findViewById<Button>(R.id.productFactCheck).setOnClickListener {
-            if (selectedProvider == null) {
-                productState.text = "Choisissez d’abord un LLM"
-            } else if (!providerConfirmedByUser) {
-                productState.text = "${selectedProvider} · confirmez d’abord ⋮ → ${selectedProvider} → Connecté"
-            } else if (currentHeadline.startsWith("AUTH REQUIRED") && !manualProviderConfirmationMode) {
-'''
-assert fact_old in s, "factcheck manual confirmation anchor missing"
-s = s.replace(fact_old, fact_new, 1)
 p.write_text(s)
 
 p = root / "app/build.gradle.kts"
