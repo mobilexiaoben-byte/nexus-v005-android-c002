@@ -20,17 +20,26 @@ new = """        <activity
             android:exported="true"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden">"""
 assert old in m, "MainActivity manifest anchor missing"
-m = m.replace(old, new, 1)
-manifest.write_text(m)
+manifest.write_text(m.replace(old, new, 1))
 
 main = root / "app/src/main/java/nexus/android/c002/MainActivity.kt"
 s = main.read_text()
 if "import android.content.res.Configuration" not in s:
-    anchor = "import android.app.Activity\\n"
-    assert anchor in s, "Configuration import anchor missing"
-    s = s.replace(anchor, anchor + "import android.content.res.Configuration\\n", 1)
+    package_anchor = """package nexus.android.c002
 
-method_anchor = "    private fun handleBridgeMessage(origin: String, payload: String) {\\n"
+"""
+    assert package_anchor in s, "MainActivity package anchor missing"
+    s = s.replace(
+        package_anchor,
+        """package nexus.android.c002
+
+import android.content.res.Configuration
+""",
+        1,
+    )
+
+method_anchor = """    private fun handleBridgeMessage(origin: String, payload: String) {
+"""
 method = """    override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         val orientationLabel = when (newConfig.orientation) {
@@ -69,12 +78,12 @@ gradle.write_text(g)
 
 lock = root / "RECONCILIATION_LOCK.txt"
 lock.write_text(lock.read_text() +
-    "PROVIDER_RUNTIME014_BASE=RUNTIME013\\n"
-    "ANDROID_ROTATION_POLICY=ACTIVITY_NOT_RECREATED_ON_ORIENTATION_SCREEN_SIZE_CHANGE\\n"
-    "ANDROID_ROTATION_STATE=WEBVIEW_BRIDGE_JOB_ACK_TERMINAL_STATE_PRESERVED_IN_PROCESS\\n"
-    "ANDROID_ROTATION_NAVIGATION=NO_LOADURL_ON_CONFIGURATION_CHANGE\\n"
-    "ANDROID_ROTATION_DEVICE_REPLAY=REQUIRED\\n"
-    "DEVICE_PASS=NOT_YET_ACQUIRED\\n"
+    "PROVIDER_RUNTIME014_BASE=RUNTIME013\n"
+    "ANDROID_ROTATION_POLICY=ACTIVITY_NOT_RECREATED_ON_ORIENTATION_SCREEN_SIZE_CHANGE\n"
+    "ANDROID_ROTATION_STATE=WEBVIEW_BRIDGE_JOB_ACK_TERMINAL_STATE_PRESERVED_IN_PROCESS\n"
+    "ANDROID_ROTATION_NAVIGATION=NO_LOADURL_ON_CONFIGURATION_CHANGE\n"
+    "ANDROID_ROTATION_DEVICE_REPLAY=REQUIRED\n"
+    "DEVICE_PASS=NOT_YET_ACQUIRED\n"
 )
 
 manifest_text = manifest.read_text()
