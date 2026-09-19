@@ -125,11 +125,18 @@ jobs:
           sha256sum NEXUS-V007-M024-U013-PROVIDER-RUNTIME-012-GOLDEN-debug.apk | tee NEXUS-V007-M024-U013-PROVIDER-RUNTIME-012-GOLDEN-debug.apk.sha256
           cp "$ROOT/RECONCILIATION_LOCK.txt" .
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload installable APK directly
+        uses: actions/upload-artifact@v7
         with:
-          name: NEXUS-V007-M024-U013-PROVIDER-RUNTIME-012-GOLDEN-debug
+          path: NEXUS-V007-M024-U013-PROVIDER-RUNTIME-012-GOLDEN-debug.apk
+          archive: false
+          if-no-files-found: error
+
+      - name: Upload evidence bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: NEXUS-V007-M024-U013-PROVIDER-RUNTIME-012-GOLDEN-evidence
           path: |
-            NEXUS-V007-M024-U013-PROVIDER-RUNTIME-012-GOLDEN-debug.apk
             NEXUS-V007-M024-U013-PROVIDER-RUNTIME-012-GOLDEN-debug.apk.sha256
             RECONCILIATION_LOCK.txt
             /tmp/C002_VALIDATION.txt
