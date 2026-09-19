@@ -1,0 +1,48 @@
+name: V007 Runtime016 policy inspection
+
+on:
+  push:
+    branches: [v007-m024-u013-provider-runtime-016-policy-router-fix]
+    paths:
+      - '.github/workflows/v007-runtime016-policy-inspect.yml'
+  pull_request:
+    branches: [v007-m024-u013-provider-runtime-015-monitor-integrated]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - name: Derive Runtime015
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '26b5b157b487eda3a0c92198066d39beb5e6eb1149a3c4a705b49274c636eed4  V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip' | sha256sum -c -
+          rm -rf base work
+          mkdir -p base work
+          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d base
+          python3 u013ux009/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          python3 reconcile001/apply_reconcile.py "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          python3 reconcile015/provider_runtime_015.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+      - name: Inspect M024 Android wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          MAIN="$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt"
+          TC="$ROOT/app/src/main/java/nexus/android/c002/core/TransportContract.kt"
+          echo '=== TransportContract policy ==='
+          grep -n -C 5 'ResearchPolicy' "$TC" || true
+          echo '=== MainActivity researchPolicy assignments ==='
+          grep -n -C 18 'researchPolicy' "$MAIN" || true
+          echo '=== Result audit validation ==='
+          grep -n -C 20 'external_research' "$MAIN" || true
+          echo '=== Result validation function ==='
+          grep -n -C 35 'validate.*Result\|RESULT_PACK\|expectedResult' "$MAIN" || true
+          echo '=== Provider policy strings ==='
+          grep -R -n -C 3 'ALLOWED\|FORBIDDEN\|REQUIRED_IF_STALE' "$ROOT/app/src/main/assets/nexus" || true
