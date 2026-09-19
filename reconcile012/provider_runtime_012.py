@@ -15,9 +15,7 @@ main_path = root / "app/src/main/java/nexus/android/c002/MainActivity.kt"
 s = main_path.read_text()
 
 # GOLDEN-FIRST — ChatGPT Android GP-V005-CHATGPT-ANDROID-UIRETRY1:
-# M-024 conversion accidentally placed research_policy on expected_result_pack.audit
-# (first research_policy_contract occurrence) instead of on the provider envelope.
-# Restore the actual envelope field so the validated provider adapter can execute.
+# M-024 policy must be carried on the provider envelope itself.
 envelope_old = '''            .put("question", job.question)
             .put("research_policy_contract", "M024_RESOLVED_POLICY_REQUIRED")
             .put("canonical_rights", "NONE")
@@ -30,30 +28,32 @@ envelope_new = '''            .put("question", job.question)
 assert s.count(envelope_old) == 1, "provider envelope M024 anchor missing/ambiguous"
 s = s.replace(envelope_old, envelope_new, 1)
 
-# Preserve the historical Android Result Pack audit invariant used by the Golden
-# ChatGPT/Gemini paths and by validateResultPack: external_research=false for this
-# FORBIDDEN replay. Keep the M024 policy metadata as additional provenance.
-audit_old = '''            .put("audit", JSONObject()
-                .put("research_policy_contract", "M024_RESOLVED_POLICY_REQUIRED")
-                .put("research_policy", job.researchPolicy.name)
-                .put("canonical_write", false)
-'''
-audit_new = '''            .put("audit", JSONObject()
-                .put("external_research", false)
-                .put("research_policy_contract", "M024_RESOLVED_POLICY_REQUIRED")
-                .put("research_policy", job.researchPolicy.name)
-                .put("canonical_write", false)
-'''
-assert s.count(audit_old) == 1, "expected result audit anchor missing/ambiguous"
-s = s.replace(audit_old, audit_new, 1)
+# Preserve the historical Result Pack invariant used by the Golden Android path:
+# this FORBIDDEN replay must explicitly carry external_research=false in audit.
+expected_start = s.index("        val expectedResult = JSONObject()")
+expected_end = s.index("        val frozenPackage = JSONObject()", expected_start)
+expected_chunk = s[expected_start:expected_end]
+audit_marker = '            .put("audit", JSONObject()\n'
+assert audit_marker in expected_chunk, "expected Result Pack audit block missing"
+if '.put("external_research", false)' not in expected_chunk:
+    expected_chunk = expected_chunk.replace(
+        audit_marker,
+        audit_marker + '                .put("external_research", false)\n',
+        1
+    )
+s = s[:expected_start] + expected_chunk + s[expected_end:]
+
+# Verify the actual provider envelope, independently from any earlier audit fields.
+envelope_start = s.index("        val envelope = JSONObject()")
+envelope_end = s.index("        val outbound = JSONObject()", envelope_start)
+envelope_chunk = s[envelope_start:envelope_end]
+assert '.put("research_policy", job.researchPolicy.name)' in envelope_chunk
+assert '.put("external_research", false)' in expected_chunk
 main_path.write_text(s)
 
 # GOLDEN-FIRST — Gemini Android GP-V004-GEMINI-ANDROID-001:
-# Runtime 010 inherited a later diagnostic rule that classified a visible composer
-# without a visible Google account control as GUEST_READY. The certified V004
-# DEVICE path instead treats a visible composer with no visible login action as
-# authenticated. Restore exactly that certified decision rule while preserving
-# Runtime 010 bridge readiness and M024 policy transport.
+# restore the certified auth decision: visible composer + no visible login action
+# is AUTHENTICATED, even when the account control itself is not visible.
 gemini_path = root / "app/src/main/assets/nexus/gemini_provider_c002.js"
 g = gemini_path.read_text()
 auth_old = '''    if(composer && profiles.length>0){
