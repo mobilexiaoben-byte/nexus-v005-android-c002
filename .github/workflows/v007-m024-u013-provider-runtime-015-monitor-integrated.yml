@@ -17,6 +17,11 @@ on:
       - 'reconcile013/**'
       - 'reconcile014/**'
       - 'reconcile015/**'
+  pull_request:
+    branches: [v007-m024-u013-provider-runtime-014-rotation-preserve]
+    paths:
+      - '.github/workflows/v007-m024-u013-provider-runtime-015-monitor-integrated.yml'
+      - 'reconcile015/**'
   workflow_dispatch:
 
 permissions:
