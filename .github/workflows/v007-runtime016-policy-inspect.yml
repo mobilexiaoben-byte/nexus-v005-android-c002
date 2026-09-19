@@ -5,6 +5,8 @@ on:
     branches: [v007-m024-u013-provider-runtime-016-policy-router-fix]
     paths:
       - '.github/workflows/v007-runtime016-policy-inspect.yml'
+  pull_request:
+    branches: [v007-m024-u013-provider-runtime-015-monitor-integrated]
   workflow_dispatch:
 
 permissions:
