@@ -23,8 +23,8 @@ on:
     branches: [v007-m024-u013-provider-runtime-016-policy-router-fix]
     paths:
       - '.github/workflows/v007-m024-u013-provider-runtime-017-report-panel.yml'
-      - 'reconcile016/**
-      - 'reconcile017/**''
+      - 'reconcile016/**'
+      - 'reconcile017/**'
   workflow_dispatch:
 
 permissions:
