@@ -113,7 +113,7 @@ jobs:
           grep -F 'monitorProvider()' "$MAIN"
           grep -F 'monitorReturning()' "$MAIN"
           grep -F 'monitorPass()' "$MAIN"
-          grep -F 'monitorFail(reason)' "$MAIN"
+          grep -F 'monitorFail(monitorMessage.optString' "$MAIN"
           grep -F 'Erreur détectée' "$MAIN"
           grep -F 'PROVIDER_RESULT' "$MAIN"
 
