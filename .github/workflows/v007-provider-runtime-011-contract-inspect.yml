@@ -1,0 +1,44 @@
+name: V007 PROVIDER RUNTIME 011 CONTRACT INSPECT
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/v007-provider-runtime-011-contract-inspect.yml'
+      - 'reconcile011/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - name: Derive runtime 010
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf work && mkdir -p work
+          python3 u013ux009/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          python3 reconcile001/apply_reconcile.py "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          python3 reconcile010/provider_runtime_010.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+      - name: Inspect contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          R="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          M="$R/app/src/main/java/nexus/android/c002/MainActivity.kt"
+          T="$R/app/src/main/java/nexus/android/c002/core/TransportContract.kt"
+          echo '=== RESEARCH POLICY ==='
+          grep -n -A80 -B20 'ResearchPolicy\|researchPolicy' "$T" "$M" || true
+          echo '=== EXECUTE ENVELOPE ==='
+          grep -n -A90 -B20 'research_policy_contract\|EXECUTE_JOB' "$M" || true
+          echo '=== CHATGPT VALIDATION ==='
+          grep -n -A80 -B20 'EXECUTION_RESEARCH_POLICY_INVALID\|research_policy' "$R/app/src/main/assets/nexus/chatgpt_provider_c002.js" || true
+          echo '=== GEMINI AUTH ==='
+          grep -n -A80 -B30 'GEMINI_NOT_AUTHENTICATED\|function detectAuth' "$R/app/src/main/assets/nexus/gemini_provider_c002.js" || true
+          echo '=== O24 ==='
+          grep -n -A120 -B20 'startO24Capture' "$M" || true
