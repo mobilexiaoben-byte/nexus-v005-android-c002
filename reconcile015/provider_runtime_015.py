@@ -193,6 +193,13 @@ for code in [
     if target in s:
         s = s.replace(target, f'monitorFail("{code}"); {target}')
 
+# Preserve the existing if/else grammar around POST_REJECTED.
+s = s.replace(
+    'if (!posted) monitorFail("ANDROID_EXECUTE_JOB_POST_REJECTED"); block("ANDROID_EXECUTE_JOB_POST_REJECTED")',
+    'if (!posted) { monitorFail("ANDROID_EXECUTE_JOB_POST_REJECTED"); block("ANDROID_EXECUTE_JOB_POST_REJECTED") }',
+    1
+)
+
 pass_marker = 'TERMINAL_RECEIPT_PASS'
 idx = s.find(pass_marker)
 assert idx >= 0, "terminal PASS marker missing"
