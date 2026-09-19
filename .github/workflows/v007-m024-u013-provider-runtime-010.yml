@@ -11,8 +11,8 @@ on:
       - 'reconcile006/**'
       - 'reconcile007/**'
       - 'reconcile008/**'
-      - 'reconcile009/**
-      - 'reconcile010/**''
+      - 'reconcile009/**'
+      - 'reconcile010/**'
   pull_request:
     branches: [main]
     paths:
@@ -23,8 +23,8 @@ on:
       - 'reconcile006/**'
       - 'reconcile007/**'
       - 'reconcile008/**'
-      - 'reconcile009/**
-      - 'reconcile010/**''
+      - 'reconcile009/**'
+      - 'reconcile010/**'
   workflow_dispatch:
 
 permissions:
