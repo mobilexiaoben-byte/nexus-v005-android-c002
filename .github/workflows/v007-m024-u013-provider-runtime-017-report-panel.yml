@@ -19,6 +19,7 @@ on:
       - 'reconcile015/**'
       - 'reconcile016/**'
       - 'reconcile017/**'
+      - 'desktop-patches/**'
   pull_request:
     branches: [v007-m024-u013-provider-runtime-016-policy-router-fix]
     paths:
@@ -131,6 +132,10 @@ jobs:
           grep -F 'nexusExchangeMonitorReportScroll.visibility = if (opening) View.VISIBLE else View.GONE' "$MAIN"
           grep -F 'appendMonitorReport("BRIDGE_MESSAGE", origin, payload)' "$MAIN"
           grep -F 'MONITOR017_REPORT_PANEL=HIDDEN_BY_DEFAULT_SCROLLABLE_220DP' "$ROOT/RECONCILIATION_LOCK.txt"
+          node --check "$GITHUB_WORKSPACE/desktop-patches/U011_DESKTOP_REPORT_PANEL_PATCH_001.js"
+          grep -F "button.textContent='Rapport'" "$GITHUB_WORKSPACE/desktop-patches/U011_DESKTOP_REPORT_PANEL_PATCH_001.js"
+          grep -F "overflow-y:auto" "$GITHUB_WORKSPACE/desktop-patches/U011_DESKTOP_REPORT_PANEL_PATCH_001.js"
+          grep -F "panel.hidden=true" "$GITHUB_WORKSPACE/desktop-patches/U011_DESKTOP_REPORT_PANEL_PATCH_001.js"
           printf 'PROVIDER_RUNTIME_017_STATIC_RESULT pass=41 fail=0\n' | tee /tmp/STATIC017.txt
 
       - uses: actions/setup-java@v5
