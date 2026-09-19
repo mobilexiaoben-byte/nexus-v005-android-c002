@@ -1,0 +1,33 @@
+name: Inspect U013 SHARED005 source
+
+on:
+  push:
+    branches: [u013-android-ux-shared-001]
+    paths:
+      - '.github/workflows/inspect-u013-shared005.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: Derive SHARED005
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir base
+          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d base
+          python3 u013ux005/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          mkdir inspect
+          cp work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/src/main/java/nexus/android/c002/MainActivity.kt inspect/
+          cp work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/src/main/assets/nexus/chatgpt_provider_c002.js inspect/
+          cp work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/U013_BASELINE_LOCK.txt inspect/
+      - uses: actions/upload-artifact@v7
+        with:
+          name: U013-SHARED005-source-inspect
+          path: inspect
+          if-no-files-found: error
