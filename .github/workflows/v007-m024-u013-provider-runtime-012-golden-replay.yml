@@ -137,3 +137,5 @@ jobs:
             /tmp/STATIC012.txt
             /tmp/BADGING.txt
           if-no-files-found: error
+
+# retrigger after anchor-safe Golden patch
