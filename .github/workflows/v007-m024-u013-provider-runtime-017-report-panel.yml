@@ -17,10 +17,10 @@ on:
       - 'reconcile013/**'
       - 'reconcile014/**'
       - 'reconcile015/**'
-      - 'reconcile016/**
-      - 'reconcile017/**''
+      - 'reconcile016/**'
+      - 'reconcile017/**'
   pull_request:
-    branches: [v007-m024-u013-provider-runtime-015-monitor-integrated]
+    branches: [v007-m024-u013-provider-runtime-016-policy-router-fix]
     paths:
       - '.github/workflows/v007-m024-u013-provider-runtime-017-report-panel.yml'
       - 'reconcile016/**
@@ -161,7 +161,7 @@ jobs:
           AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
           "$AAPT" dump badging "$APK" | tee /tmp/BADGING.txt
           grep -F "package: name='nexus.android.v007.m024.u013.providercontract006'" /tmp/BADGING.txt
-          grep -F "versionCode='69'" /tmp/BADGING.txt
+          grep -F "versionCode='70'" /tmp/BADGING.txt
           grep -F "application-label:'NEXUS'" /tmp/BADGING.txt
           unzip -l "$APK" | grep -F 'assets/nexus/nexus_existing_guest_monitor_patch.js'
           cp "$APK" NEXUS-V007-M024-U013-PROVIDER-RUNTIME-017-REPORT-PANEL-debug.apk
