@@ -95,6 +95,7 @@ jobs:
           grep -F 'SelectedProvider.GROK -> GROK_CHANNEL' "$MAIN"
 
           # Exact compact source is embedded and syntactically valid.
+          echo 'd3a2f5a9fcaa5e755226c3d04145ddc46e20862e0eaf034f3b8f646babe093aa  reconcile015/nexus_existing_guest_monitor_patch.js' | sha256sum -c -
           node --check "$MON"
           cmp -s "$MON" "$GITHUB_WORKSPACE/reconcile015/nexus_existing_guest_monitor_patch.js"
           grep -F "PATCH_ID='NEXUS_C003_EXISTING_GUEST_MONITOR_DEMO_001'" "$MON"
