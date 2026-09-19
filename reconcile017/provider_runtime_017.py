@@ -132,6 +132,8 @@ s = s.replace(
     1
 )
 
+main_path.write_text(s)
+
 gradle = root / "app/build.gradle.kts"
 g = gradle.read_text()
 assert "versionCode = 69" in g
