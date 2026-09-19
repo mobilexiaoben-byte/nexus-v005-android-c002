@@ -172,16 +172,26 @@ bridge_observer = '''    private fun handleBridgeMessage(origin: String, payload
             val monitorMessage = JSONObject(payload)
             when (monitorMessage.optString("type")) {
                 "PROVIDER_ACK", "PROVIDER_PROGRESS" -> monitorProvider()
-                "PROVIDER_RESULT" -> if (monitorMessage.optBoolean("ok", false)) monitorReturning()
+                "PROVIDER_RESULT" -> {
+                    if (monitorMessage.optBoolean("ok", false)) monitorReturning()
+                    else monitorFail(monitorMessage.optString("error", "Retour LLM non disponible."))
+                }
             }
         }
 '''
 s = s.replace(bridge_anchor, bridge_observer, 1)
 
-block_re = re.compile(r'(\n\s*private fun block\(reason: String\) \{\n)')
-m = block_re.search(s)
-assert m, "block(reason) method anchor missing"
-s = s[:m.end()] + '        monitorFail(reason)\n' + s[m.end():]
+# Explicit transport failures feed the compact monitor while existing fail-closed
+# decisions remain untouched.
+for code in [
+    "ANDROID_EXECUTE_JOB_BRIDGE_UNAVAILABLE",
+    "ANDROID_EXECUTE_JOB_ORIGIN_DESYNC",
+    "ANDROID_EXECUTE_JOB_POST_REJECTED",
+    "ANDROID_EXECUTE_JOB_BRIDGE_NOT_READY",
+]:
+    target = f'block("{code}")'
+    if target in s:
+        s = s.replace(target, f'monitorFail("{code}"); {target}')
 
 pass_marker = 'TERMINAL_RECEIPT_PASS'
 idx = s.find(pass_marker)
@@ -223,7 +233,7 @@ for token in [
     "monitorProvider()",
     "monitorReturning()",
     "monitorPass()",
-    "monitorFail(reason)",
+    "monitorFail(monitorMessage.optString",
     "Erreur détectée",
     "SURVEILLANCE ACTIVE",
 ]:
