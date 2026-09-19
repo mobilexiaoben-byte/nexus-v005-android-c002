@@ -20,6 +20,19 @@ shutil.copy2(monitor_source, assets / "nexus_existing_guest_monitor_patch.js")
 main = root / "app/src/main/java/nexus/android/c002/MainActivity.kt"
 s = main.read_text()
 
+def add_import(import_line):
+    global s
+    if import_line not in s:
+        marker = "import android.app.Activity\n"
+        assert marker in s, "Activity import anchor missing"
+        s = s.replace(marker, marker + import_line + "\n", 1)
+
+for imp in [
+    "import android.text.TextUtils",
+    "import android.view.Gravity",
+]:
+    add_import(imp)
+
 field_anchor = "    private lateinit var productState: TextView\n"
 assert field_anchor in s, "productState field anchor missing"
 fields = """    private lateinit var productState: TextView
