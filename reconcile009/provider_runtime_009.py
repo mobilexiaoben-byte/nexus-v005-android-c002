@@ -247,9 +247,19 @@ for token in [
     "ANDROID_EXECUTE_JOB_ORIGIN_DESYNC",
     "ANDROID_EXECUTE_JOB_POST_REJECTED",
     "EXECUTE_JOB_POSTED",
- ] {
+]
+for token in [
+    "PROVIDER_SWITCH_ORIGIN_CONFIRMED",
+    "PROVIDER_SWITCH_DESYNC_RETRY",
+    "PROVIDER_CONFIRMATION_REJECTED_ORIGIN_DESYNC",
+    "ANALYSE_PROVIDER_ORIGIN_GUARD",
+    "postExecutionWhenBridgeReady",
+    "ANDROID_EXECUTE_JOB_BRIDGE_NOT_READY",
+    "ANDROID_EXECUTE_JOB_ORIGIN_DESYNC",
+    "ANDROID_EXECUTE_JOB_POST_REJECTED",
+    "EXECUTE_JOB_POSTED",
+]:
     assert token in main, token
-}
 assert "ANDROID_EXECUTE_JOB_POST_FAILED" not in main
 assert "fun isReady(origin: String): Boolean" in bridge
 for name in ["chatgpt_provider_c002.js", "gemini_provider_c002.js", "zai_provider_c002.js"]:
