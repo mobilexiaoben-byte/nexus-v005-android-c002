@@ -84,7 +84,7 @@ method_anchor = "    private fun monitorRoute(returning: Boolean): String {\n"
 append_method = r"""    private fun appendMonitorReport(category: String, origin: String, detail: String) {
         val safeDetail = detail.replace("\r", " ").replace("\n", " ").take(4000)
         val safeOrigin = origin.replace("\r", " ").replace("\n", " ").take(512)
-        val line = "\${System.currentTimeMillis()} | $category | \${selectedProvider ?: "LLM"} | $safeOrigin | $safeDetail"
+        val line = "${System.currentTimeMillis()} | $category | ${selectedProvider ?: "LLM"} | $safeOrigin | $safeDetail"
         nexusExchangeMonitorReportLines.add(line)
         while (nexusExchangeMonitorReportLines.size > 200) nexusExchangeMonitorReportLines.removeAt(0)
         if (::nexusExchangeMonitorReportBody.isInitialized) {
@@ -124,11 +124,11 @@ bridge_replacement = """            val monitorMessage = JSONObject(payload)
 assert bridge_anchor in s, "bridge monitor anchor missing"
 s = s.replace(bridge_anchor, bridge_replacement, 1)
 
-diag_anchor = 'recordDiagnostic("EXECUTE_JOB", origin, "job_id=$JOB_ID;job_type=\${jobType.name};research_policy=\${job.researchPolicy.name}")'
+diag_anchor = 'recordDiagnostic("EXECUTE_JOB", origin, "job_id=$JOB_ID;job_type=${jobType.name};research_policy=${job.researchPolicy.name}")'
 assert diag_anchor in s, "Runtime016 execution diagnostic anchor missing"
 s = s.replace(
     diag_anchor,
-    diag_anchor + '\n        appendMonitorReport("EXECUTE_JOB", origin, "job_id=$JOB_ID;job_type=\${jobType.name};research_policy=\${job.researchPolicy.name}")',
+    diag_anchor + '\n        appendMonitorReport("EXECUTE_JOB", origin, "job_id=$JOB_ID;job_type=${jobType.name};research_policy=${job.researchPolicy.name}")',
     1
 )
 
@@ -165,7 +165,7 @@ for token in [
     'android.widget.ScrollView',
     '(220 * resources.displayMetrics.density).toInt()',
     'appendMonitorReport("BRIDGE_MESSAGE", origin, payload)',
-    'appendMonitorReport("EXECUTE_JOB", origin, "job_id=$JOB_ID;job_type=\${jobType.name};research_policy=\${job.researchPolicy.name}")',
+    'appendMonitorReport("EXECUTE_JOB", origin, "job_id=$JOB_ID;job_type=${jobType.name};research_policy=${job.researchPolicy.name}")',
     'CONFIGURATION_CHANGED_PRESERVED',
     'setupExchangeMonitor()',
 ]:
