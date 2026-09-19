@@ -119,6 +119,7 @@ jobs:
 
           grep -F 'versionCode = 68' "$ROOT/app/build.gradle.kts"
           grep -F 'versionName = "0.0.68-v007-m024-u013-provider-runtime015-monitor-integrated"' "$ROOT/app/build.gradle.kts"
+          nl -ba "$MAIN" | sed -n '548,576p'
           printf 'PROVIDER_RUNTIME_015_STATIC_RESULT pass=30 fail=0\n' | tee /tmp/STATIC015.txt
 
       - uses: actions/setup-java@v5
