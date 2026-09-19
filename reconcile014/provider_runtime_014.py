@@ -26,7 +26,7 @@ manifest.write_text(m)
 main = root / "app/src/main/java/nexus/android/c002/MainActivity.kt"
 s = main.read_text()
 if "import android.content.res.Configuration" not in s:
-    anchor = "import android.content.Intent\\n"
+    anchor = "import android.app.Activity\\n"
     assert anchor in s, "Configuration import anchor missing"
     s = s.replace(anchor, anchor + "import android.content.res.Configuration\\n", 1)
 
