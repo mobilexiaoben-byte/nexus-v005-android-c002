@@ -1,0 +1,165 @@
+name: V007 M024 U013 PROVIDER RUNTIME 014 ROTATION PRESERVE
+
+on:
+  push:
+    branches: [v007-m024-u013-provider-runtime-014-rotation-preserve]
+    paths:
+      - '.github/workflows/v007-m024-u013-provider-runtime-014-rotation-preserve.yml'
+      - 'reconcile001/**'
+      - 'reconcile004/**'
+      - 'reconcile005/**'
+      - 'reconcile006/**'
+      - 'reconcile007/**'
+      - 'reconcile008/**'
+      - 'reconcile009/**'
+      - 'reconcile010/**'
+      - 'reconcile012/**'
+      - 'reconcile013/**'
+      - 'reconcile014/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate frozen C002 baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '26b5b157b487eda3a0c92198066d39beb5e6eb1149a3c4a705b49274c636eed4  V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip' | sha256sum -c -
+          rm -rf base work
+          mkdir -p base work
+          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d base
+          cd base/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+          chmod +x run_validation.sh run_core_tests.sh
+          ./run_validation.sh | tee /tmp/C002_VALIDATION.txt
+          grep -F 'RESULT pass=25 fail=0' /tmp/C002_VALIDATION.txt
+          grep -F 'STATIC_RESULT pass=10 fail=0' /tmp/C002_VALIDATION.txt
+
+      - name: Derive U013 SHARED-009 including AUTHFIX2
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 u013ux009/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+
+      - name: Apply M024 RECONCILE-002
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 reconcile001/apply_reconcile.py "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+
+      - name: Apply provider runtime 014 rotation preservation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 reconcile014/provider_runtime_014.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+
+      - name: Validate Golden and source invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          MAIN="$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt"
+          GEMINI="$ROOT/app/src/main/assets/nexus/gemini_provider_c002.js"
+          BRIDGE="$ROOT/app/src/main/java/nexus/android/c002/web/NexusWebBridge.kt"
+          "$ROOT/run_core_tests.sh" | tee /tmp/CORE.txt
+          grep -F 'RESULT pass=27 fail=0' /tmp/CORE.txt
+
+          # Runtime 010 bridge fix remains intact.
+          grep -F 'postExecutionWhenBridgeReady' "$MAIN"
+          grep -F 'fun isReady(origin: String): Boolean' "$BRIDGE"
+          for f in chatgpt_provider_c002.js gemini_provider_c002.js claude_provider_c002.js zai_provider_c002.js grok_provider_013.js; do
+            node --check "$ROOT/app/src/main/assets/nexus/$f"
+            grep -F "type:'BRIDGE_READY'" "$ROOT/app/src/main/assets/nexus/$f"
+          done
+          grep -F "[0,100,300,1000].forEach" "$ROOT/app/src/main/assets/nexus/chatgpt_provider_c002.js"
+          grep -F "[0,100,300,1000].forEach" "$ROOT/app/src/main/assets/nexus/gemini_provider_c002.js"
+          grep -F "[0,100,300,1000].forEach" "$ROOT/app/src/main/assets/nexus/claude_provider_c002.js"
+          grep -F "[0,100,300,1000].forEach" "$ROOT/app/src/main/assets/nexus/zai_provider_c002.js"
+          grep -F "[0,100,300,1000].forEach" "$ROOT/app/src/main/assets/nexus/grok_provider_013.js"
+
+          # Golden ChatGPT path + M024 transport.
+          test "$(grep -F -c '.put("research_policy", job.researchPolicy.name)' "$MAIN")" -ge 2
+          grep -F '.put("external_research", false)' "$MAIN"
+          grep -F 'research_policy_contract' "$MAIN"
+
+          # Golden Gemini decision + Runtime013 execution guard.
+          grep -F 'composer && negatives.length===0' "$GEMINI"
+          grep -F 'VISIBLE_GEMINI_COMPOSER_AND_NO_LOGIN_ACTION' "$GEMINI"
+          ! grep -F "state='GUEST_READY'" "$GEMINI"
+          grep -F 'manuallyConfirmed&&!!composerAtDispatch' "$GEMINI"
+
+          # Claude/Grok candidate wiring: adapter exists, bridge-ready, no DEVICE PASS claimed.
+          grep -F 'SelectedProvider.CLAUDE -> CLAUDE_RUNTIME_CHANNEL' "$MAIN"
+          grep -F 'SelectedProvider.GROK -> GROK_CHANNEL' "$MAIN"
+          grep -F '"ANTHROPIC" -> "Anthropic"' "$MAIN"
+          grep -F '"XAI" -> "xAI"' "$MAIN"
+          grep -F '.put("user_confirmed_connected", providerConfirmedByUser)' "$MAIN"
+
+          MANIFEST="$ROOT/app/src/main/AndroidManifest.xml"
+          grep -F 'android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"' "$MANIFEST"
+          grep -F 'override fun onConfigurationChanged(newConfig: Configuration)' "$MAIN"
+          grep -F 'CONFIGURATION_CHANGED_PRESERVED' "$MAIN"
+          grep -F 'versionCode = 67' "$ROOT/app/build.gradle.kts"
+          printf 'PROVIDER_RUNTIME_014_STATIC_RESULT pass=21 fail=0\n' | tee /tmp/STATIC014.txt
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Apply NEXUS launcher branding
+        uses: mobilexiaoben-byte/nexus-v005-android-c002/branding@main
+        with:
+          root: ${{ github.workspace }}/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+
+      - name: Build APK
+        working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+        shell: bash
+        run: gradle :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Verify APK and prepare evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          APK="$ROOT/app/build/outputs/apk/debug/app-debug.apk"
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
+          "$AAPT" dump badging "$APK" | tee /tmp/BADGING.txt
+          grep -F "package: name='nexus.android.v007.m024.u013.providercontract006'" /tmp/BADGING.txt
+          grep -F "versionCode='67'" /tmp/BADGING.txt
+          grep -F "application-label:'NEXUS'" /tmp/BADGING.txt
+          cp "$APK" NEXUS-V007-M024-U013-PROVIDER-RUNTIME-014-ROTATION-PRESERVE-debug.apk
+          sha256sum NEXUS-V007-M024-U013-PROVIDER-RUNTIME-014-ROTATION-PRESERVE-debug.apk | tee NEXUS-V007-M024-U013-PROVIDER-RUNTIME-014-ROTATION-PRESERVE-debug.apk.sha256
+          cp "$ROOT/RECONCILIATION_LOCK.txt" .
+
+      - name: Upload installable APK directly
+        uses: actions/upload-artifact@v7
+        with:
+          path: NEXUS-V007-M024-U013-PROVIDER-RUNTIME-014-ROTATION-PRESERVE-debug.apk
+          archive: false
+          if-no-files-found: error
+
+      - name: Upload evidence bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: NEXUS-V007-M024-U013-PROVIDER-RUNTIME-014-ROTATION-PRESERVE-evidence
+          path: |
+            NEXUS-V007-M024-U013-PROVIDER-RUNTIME-014-ROTATION-PRESERVE-debug.apk.sha256
+            RECONCILIATION_LOCK.txt
+            /tmp/C002_VALIDATION.txt
+            /tmp/CORE.txt
+            /tmp/STATIC014.txt
+            /tmp/BADGING.txt
+          if-no-files-found: error
+
