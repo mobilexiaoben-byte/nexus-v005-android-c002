@@ -1,0 +1,53 @@
+name: V007 PROVIDER RUNTIME 009 SOURCE INSPECT
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/v007-provider-runtime-009-source-inspect.yml'
+      - 'reconcile009/**'
+      - 'reconcile008/**'
+      - 'reconcile007/**'
+      - 'reconcile006/**'
+      - 'reconcile005/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Derive current runtime 008 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '26b5b157b487eda3a0c92198066d39beb5e6eb1149a3c4a705b49274c636eed4  V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip' | sha256sum -c -
+          rm -rf base work
+          mkdir -p base work
+          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d base
+          python3 u013ux009/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          python3 reconcile001/apply_reconcile.py "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          python3 reconcile008/provider_runtime_008.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+
+      - name: Print provider switch and bridge dispatch source
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          MAIN="$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt"
+          BRIDGE="$ROOT/app/src/main/java/nexus/android/c002/web/NexusWebBridge.kt"
+          echo '=== selectProviderManually ==='
+          grep -n -A45 -B5 'private fun selectProviderManually' "$MAIN"
+          echo '=== onPageStarted/onPageFinished ==='
+          grep -n -A35 -B8 'onPageStarted\|onPageFinished' "$MAIN"
+          echo '=== startExecutionProof ==='
+          grep -n -A100 -B10 'private fun startExecutionProof' "$MAIN"
+          echo '=== EXECUTE_JOB failure ==='
+          grep -n -A40 -B30 'ANDROID_EXECUTE_JOB_POST_FAILED' "$MAIN"
+          echo '=== NexusWebBridge ==='
+          cat "$BRIDGE"
