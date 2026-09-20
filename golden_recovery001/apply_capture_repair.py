@@ -211,8 +211,9 @@ gem.write_text(g)
 
 # Current controller must speak the Golden Gemini channel used by the restored adapter.
 m=main_path.read_text()
-assert 'const val GEMINI_CHANNEL = "NEXUS_V007_GEMINI_DIAG_003"' in m
-m=m.replace('const val GEMINI_CHANNEL = "NEXUS_V007_GEMINI_DIAG_003"','const val GEMINI_CHANNEL = "NEXUS_V004_GEMINI_001"',1)
+channel_matches=re.findall(r'const val GEMINI_CHANNEL = "[^"]+"',m)
+assert len(channel_matches)==1, f"unexpected Gemini channel definitions: {channel_matches}"
+m=m.replace(channel_matches[0],'const val GEMINI_CHANNEL = "NEXUS_V004_GEMINI_001"',1)
 main_path.write_text(m)
 
 gradle=root/"app/build.gradle.kts"
