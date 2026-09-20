@@ -1,0 +1,57 @@
+{
+  "roadmap_workstream": "V-007",
+  "candidate_classification": "UNVALIDATED_CANDIDATE",
+  "affected_golden_paths": [
+    "GP-V005-CHATGPT-ANDROID-UIRETRY1",
+    "GP-V004-GEMINI-ANDROID-001",
+    "GP-V005-ZAI-ANDROID-001",
+    "GP-U002-GUEST-ANDROID-MONITOR-SMOKE",
+    "GP-U004-ANDROID-UX-SHELL004",
+    "GP-U007-ANDROID-USER-JOURNEY"
+  ],
+  "required_components": [
+    "COMP-ANDROID-V005-OPENAI-UIRETRY1",
+    "COMP-ANDROID-V004-GEMINI-PROOF001",
+    "COMP-ANDROID-V005-ZAI-PROOF001",
+    "COMP-ANDROID-U002-MONITOR-0030",
+    "COMP-ANDROID-U004-UX-SHELL004"
+  ],
+  "change_scope": [
+    "provider adapters",
+    "Android bridge/controller",
+    "monitor/report",
+    "M-024 policy transport"
+  ],
+  "replay_plan": [
+    {
+      "golden_path_id": "GP-V005-CHATGPT-ANDROID-UIRETRY1",
+      "required": true,
+      "gate": "DEVICE terminal round-trip"
+    },
+    {
+      "golden_path_id": "GP-V004-GEMINI-ANDROID-001",
+      "required": true,
+      "gate": "DEVICE terminal round-trip"
+    },
+    {
+      "golden_path_id": "GP-V005-ZAI-ANDROID-001",
+      "required": true,
+      "gate": "DEVICE terminal round-trip"
+    },
+    {
+      "golden_path_id": "GP-U002-GUEST-ANDROID-MONITOR-SMOKE",
+      "required": true,
+      "gate": "DEVICE monitor smoke"
+    },
+    {
+      "golden_path_id": "GP-U004-ANDROID-UX-SHELL004",
+      "required": true,
+      "gate": "DEVICE shell/menu replay"
+    },
+    {
+      "golden_path_id": "GP-U007-ANDROID-USER-JOURNEY",
+      "required": true,
+      "gate": "DEVICE user-journey non-regression"
+    }
+  ]
+}
