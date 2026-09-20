@@ -1,9 +1,27 @@
 package nexus.shadow
 
+default allow := false
+
+required_manifest_keys := {
+    "roadmap_workstream",
+    "candidate_classification",
+    "affected_golden_paths",
+    "required_components",
+    "change_scope",
+    "replay_plan",
+    "baseline",
+}
+
 protected_component_statuses := {
     "ACTIVE_REFERENCE",
     "ACTIVE_REFERENCE_GAP",
     "ACTIVE_REQUIRED_REPLAY",
+}
+
+deny contains msg if {
+    missing := required_manifest_keys - object.keys(input.manifest)
+    count(missing) > 0
+    msg := sprintf("missing keys: %s", [concat(",", sort([x | some x in missing]))])
 }
 
 deny contains "candidate_classification must be UNVALIDATED_CANDIDATE" if {
@@ -87,6 +105,11 @@ deny contains "each replay entry requires required=true and a non-empty gate" if
 deny contains "each replay entry requires required=true and a non-empty gate" if {
     some x in input.manifest.replay_plan
     not x.gate
+}
+
+deny contains "each replay entry requires required=true and a non-empty gate" if {
+    some x in input.manifest.replay_plan
+    x.gate == ""
 }
 
 allow if {
