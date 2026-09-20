@@ -1,0 +1,187 @@
+name: V007 M024 U013 PROVIDER RUNTIME 019 WEB MONITOR FIX
+
+on:
+  push:
+    branches: [v007-m024-u013-provider-runtime-019-web-monitor-fix]
+    paths:
+      - '.github/workflows/v007-m024-u013-provider-runtime-018.yml'
+      - 'reconcile001/**'
+      - 'reconcile004/**'
+      - 'reconcile005/**'
+      - 'reconcile006/**'
+      - 'reconcile007/**'
+      - 'reconcile008/**'
+      - 'reconcile009/**'
+      - 'reconcile010/**'
+      - 'reconcile012/**'
+      - 'reconcile013/**'
+      - 'reconcile014/**'
+      - 'reconcile015/**'
+      - 'reconcile016/**'
+      - 'reconcile017/**'
+      - 'reconcile018/**'
+      - 'reconcile019/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate frozen C002 baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '26b5b157b487eda3a0c92198066d39beb5e6eb1149a3c4a705b49274c636eed4  V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip' | sha256sum -c -
+          rm -rf base work
+          mkdir -p base work
+          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d base
+          cd base/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+          chmod +x run_validation.sh run_core_tests.sh
+          ./run_validation.sh | tee /tmp/C002_VALIDATION.txt
+          grep -F 'RESULT pass=25 fail=0' /tmp/C002_VALIDATION.txt
+          grep -F 'STATIC_RESULT pass=10 fail=0' /tmp/C002_VALIDATION.txt
+
+      - name: Derive U013 SHARED-009 including AUTHFIX2
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp -a base/V005_ANDROID_CHROMIUM_WEBVIEW_C002 work/
+          python3 u013ux009/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+
+      - name: Apply M024 RECONCILE-002
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 reconcile001/apply_reconcile.py "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+
+      - name: Apply Runtime019 web and monitor correction
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 reconcile019/provider_runtime_019.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+
+      - name: Validate Runtime019 and preserved invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          MAIN="$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt"
+          TC="$ROOT/app/src/main/java/nexus/android/c002/core/TransportContract.kt"
+          BRIDGE="$ROOT/app/src/main/java/nexus/android/c002/web/NexusWebBridge.kt"
+          MON="$ROOT/app/src/main/assets/nexus/nexus_existing_guest_monitor_patch.js"
+
+          "$ROOT/run_core_tests.sh" | tee /tmp/CORE.txt
+          grep -F 'T05 OPEN_ANALYSIS resolves OPTIONAL' /tmp/CORE.txt
+          grep -F 'T05 CLOSED_AUDIT remains FORBIDDEN' /tmp/CORE.txt
+          grep -F 'T05 POPINT_RESEARCH remains REQUIRED' /tmp/CORE.txt
+          grep -F 'fail=0' /tmp/CORE.txt
+
+          grep -F 'JobType.OPEN_ANALYSIS -> ResearchPolicy.OPTIONAL' "$TC"
+          grep -F 'JobType.CLOSED_AUDIT -> ResearchPolicy.FORBIDDEN' "$TC"
+          grep -F 'JobType.FACT_CHECK -> ResearchPolicy.REQUIRED' "$TC"
+          grep -F 'JobType.POPINT_RESEARCH -> ResearchPolicy.REQUIRED' "$TC"
+
+          ! grep -F 'RuntimeGate.validateDescriptor(descriptor, CHATGPT_ORIGIN)' "$MAIN"
+          grep -F 'val expectedProviderOrigin = canonicalOrigin(selectedProviderOrigin ?: origin)' "$MAIN"
+          grep -F 'RuntimeGate.validateDescriptor(descriptor, expectedProviderOrigin)' "$MAIN"
+          grep -F 'DESCRIBE PASS — ${selectedProvider ?: "LLM"} ready' "$MAIN"
+          ! grep -F 'Exécution bloquée · vérification de sécurité' "$MAIN"
+          grep -F 'safeMonitorText(code)' "$MAIN"
+          grep -F 'productState.text = "${selectedProvider ?: "LLM"} · connecté · prêt"' "$MAIN"
+
+          grep -F 'android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden"' "$ROOT/app/src/main/AndroidManifest.xml"
+          grep -F 'override fun onConfigurationChanged(newConfig: Configuration)' "$MAIN"
+          grep -F 'CONFIGURATION_CHANGED_PRESERVED' "$MAIN"
+          grep -F 'postExecutionWhenBridgeReady' "$MAIN"
+          grep -F 'fun isReady(origin: String): Boolean' "$BRIDGE"
+
+          echo 'd3a2f5a9fcaa5e755226c3d04145ddc46e20862e0eaf034f3b8f646babe093aa  reconcile015/nexus_existing_guest_monitor_patch.js' | sha256sum -c -
+          node --check "$MON"
+          cmp -s "$MON" "$GITHUB_WORKSPACE/reconcile015/nexus_existing_guest_monitor_patch.js"
+
+          for f in chatgpt_provider_c002.js gemini_provider_c002.js claude_provider_c002.js zai_provider_c002.js grok_provider_013.js; do
+            P="$ROOT/app/src/main/assets/nexus/$f"
+            node --check "$P"
+            grep -F "type:'BRIDGE_READY'" "$P"
+            ! grep -F 'ALLOWED' "$P"
+          done
+
+          grep -F 'composer && negatives.length===0' "$ROOT/app/src/main/assets/nexus/gemini_provider_c002.js"
+          grep -F 'SelectedProvider.CLAUDE -> CLAUDE_RUNTIME_CHANNEL' "$MAIN"
+          grep -F 'SelectedProvider.GROK -> GROK_CHANNEL' "$MAIN"
+          grep -F 'setupExchangeMonitor()' "$MAIN"
+          grep -F 'monitorPass()' "$MAIN"
+          grep -F 'text = "Rapport"' "$MAIN"
+          grep -F 'Rapport des échanges NEXUS ↔' "$MAIN"
+          grep -F 'Cycle courant uniquement' "$MAIN"
+          grep -F 'startReadableMonitorReport()' "$MAIN"
+          grep -F 'finishReadableMonitorReport(true' "$MAIN"
+          ! grep -F 'appendMonitorReport("BRIDGE_MESSAGE", origin, payload)' "$MAIN"
+          ! grep -R -F 'Do NOT browse the web and do NOT perform external research' "$ROOT/app/src/main/assets/nexus/"*provider*.js
+          ! grep -R -F "envelope.external_research!==false" "$ROOT/app/src/main/assets/nexus/"*provider*.js
+          grep -R -F 'Research policy OPTIONAL' "$ROOT/app/src/main/assets/nexus/"*provider*.js
+
+          grep -F 'versionCode = 72' "$ROOT/app/build.gradle.kts"
+          grep -F 'versionName = "0.0.72-v007-m024-u013-provider-runtime019-web-monitor-fix"' "$ROOT/app/build.gradle.kts"
+          printf 'PROVIDER_RUNTIME_019_STATIC_RESULT pass=45 fail=0\n' | tee /tmp/STATIC018.txt
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Apply NEXUS launcher branding
+        uses: mobilexiaoben-byte/nexus-v005-android-c002/branding@main
+        with:
+          root: ${{ github.workspace }}/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+
+      - name: Build APK
+        working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+        shell: bash
+        run: gradle :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Verify APK and prepare evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          APK="$ROOT/app/build/outputs/apk/debug/app-debug.apk"
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
+          "$AAPT" dump badging "$APK" | tee /tmp/BADGING.txt
+          grep -F "package: name='nexus.android.v007.m024.u013.providercontract006'" /tmp/BADGING.txt
+          grep -F "versionCode='71'" /tmp/BADGING.txt
+          grep -F "application-label:'NEXUS'" /tmp/BADGING.txt
+          unzip -l "$APK" | grep -F 'assets/nexus/nexus_existing_guest_monitor_patch.js'
+          cp "$APK" NEXUS-V007-M024-U013-PROVIDER-RUNTIME-019-WEB-MONITOR-FIX-debug.apk
+          sha256sum NEXUS-V007-M024-U013-PROVIDER-RUNTIME-019-WEB-MONITOR-FIX-debug.apk | tee NEXUS-V007-M024-U013-PROVIDER-RUNTIME-019-WEB-MONITOR-FIX-debug.apk.sha256
+          cp "$ROOT/RECONCILIATION_LOCK.txt" .
+
+      - name: Upload installable APK directly
+        uses: actions/upload-artifact@v7
+        with:
+          path: NEXUS-V007-M024-U013-PROVIDER-RUNTIME-019-WEB-MONITOR-FIX-debug.apk
+          archive: false
+          if-no-files-found: error
+
+      - name: Upload evidence bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: NEXUS-V007-M024-U013-PROVIDER-RUNTIME-019-WEB-MONITOR-FIX-evidence
+          path: |
+            NEXUS-V007-M024-U013-PROVIDER-RUNTIME-019-WEB-MONITOR-FIX-debug.apk.sha256
+            RECONCILIATION_LOCK.txt
+            /tmp/C002_VALIDATION.txt
+            /tmp/CORE.txt
+            /tmp/STATIC018.txt
+            /tmp/BADGING.txt
+          if-no-files-found: error
