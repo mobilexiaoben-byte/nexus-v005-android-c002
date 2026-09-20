@@ -3,12 +3,7 @@ name: Enforce Canonical NEXUS Launcher Contract
 on:
   push:
     branches:
-      - main
-      - 'v005-c002-*'
-    paths:
-      - '.github/workflows/**'
-      - 'V005_ANDROID_CHROMIUM_WEBVIEW_C003.zip'
-      - 'V005_ANDROID_CHROMIUM_WEBVIEW_C003.zip.sha256'
+      - '**'
   workflow_dispatch:
 
 permissions:
@@ -57,6 +52,15 @@ jobs:
               if not active:
                   continue
               checked.append(str(path))
+              m = preflight_re.search(text)
+              if not m:
+                  failures.append(f'{path}: missing mandatory machine-checkable NEXUS Golden preflight')
+              else:
+                  manifest = m.group(1)
+                  proc = subprocess.run(['python3','governance/golden_guard.py','--manifest',manifest], text=True, capture_output=True)
+                  print(proc.stdout, end='')
+                  if proc.returncode != 0:
+                      failures.append(f'{path}: governance preflight failed for {manifest}: {proc.stderr.strip()}')
               if c003_archive not in text:
                   failures.append(f'{path}: must build from frozen C003 baseline')
               if c003_sha not in text:
