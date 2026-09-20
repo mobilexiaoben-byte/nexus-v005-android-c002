@@ -1,0 +1,107 @@
+name: V007 PROVIDER DIAGNOSTIC HARNESS
+
+on:
+  push:
+    branches: [v007-golden-recovery-007-provider-device-repair]
+    paths:
+      - '.github/workflows/v007-provider-diagnostic-harness.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Checkout Runtime019 lineage
+        uses: actions/checkout@v6
+        with:
+          ref: v007-m024-u013-provider-runtime-019-web-monitor-fix
+          path: legacy
+          fetch-depth: 1
+
+      - name: Checkout ChatGPT Golden
+        uses: actions/checkout@v6
+        with:
+          ref: cb82ece5e9a29a21115b5127cee69fd5b9a06987
+          path: golden_chatgpt
+          fetch-depth: 1
+
+      - name: Checkout Gemini Golden
+        uses: actions/checkout@v6
+        with:
+          ref: 48494565af818bf6859ba4fa90e2e8d0db0397fa
+          path: golden_gemini
+          fetch-depth: 1
+
+      - name: Reconstruct Recovery007 source only
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '69f88ce310515d94c7225a080d615c64c7bc3dac786cc2a9d590901599fa6670  V005_ANDROID_CHROMIUM_WEBVIEW_C003.zip' | sha256sum -c -
+          cp V005_ANDROID_CHROMIUM_WEBVIEW_C003.zip legacy/V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip
+          rm -rf legacy/base work golden_chatgpt/base golden_chatgpt/work golden_gemini/base golden_gemini/work
+          mkdir -p legacy/base work golden_chatgpt/base golden_chatgpt/work golden_gemini/base golden_gemini/work
+          unzip -q legacy/V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d legacy/base
+          python3 legacy/u013ux009/derive.py "$GITHUB_WORKSPACE/legacy" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          python3 legacy/reconcile001/apply_reconcile.py "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          python3 legacy/reconcile019/provider_runtime_019.py "$GITHUB_WORKSPACE/legacy" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          unzip -q golden_chatgpt/V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d golden_chatgpt/base
+          python3 golden_chatgpt/executionproof006_uiretry1/derive.py "$GITHUB_WORKSPACE/golden_chatgpt" "$GITHUB_WORKSPACE/golden_chatgpt/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          unzip -q golden_gemini/V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d golden_gemini/base
+          python3 golden_gemini/geminiproof001/derive.py "$GITHUB_WORKSPACE/golden_gemini" "$GITHUB_WORKSPACE/golden_gemini/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          cp golden_chatgpt/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/src/main/assets/nexus/chatgpt_provider_c002.js work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/src/main/assets/nexus/chatgpt_provider_c002.js
+          cp golden_gemini/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/src/main/assets/nexus/gemini_provider_c002.js work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/src/main/assets/nexus/gemini_provider_c002.js
+          python3 golden_recovery001/apply_capture_repair.py "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          python3 golden_recovery002/apply_device_fixes.py "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          python3 golden_recovery003/apply_auth_execution_fix.py "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          python3 golden_recovery004/apply_golden_diff_fix.py "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          python3 golden_recovery007/apply_provider_device_repair.py "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+
+      - name: Extract timeout and lifecycle evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          MAIN="$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt"
+          mkdir -p diag
+          python3 - <<'PY'
+          from pathlib import Path
+          import re, json
+          root=Path("work/V005_ANDROID_CHROMIUM_WEBVIEW_C002")
+          main=(root/"app/src/main/java/nexus/android/c002/MainActivity.kt").read_text()
+          providers={}
+          for p in sorted((root/"app/src/main/assets/nexus").glob("*provider*.js")):
+              s=p.read_text()
+              providers[p.name]={
+                  "timeouts": re.findall(r'(?i)timeout\s*=\s*\d+',s),
+                  "prompt_sent": [x for x in ["PROMPT_SENT","PROMPT_SENT_CONFIRMED"] if x in s],
+                  "response_started": "RESPONSE_STARTED" in s,
+                  "json_complete": "JSON_COMPLETE_DETECTED" in s,
+                  "response_captured": "RESPONSE_CAPTURED" in s,
+              }
+          native=[]
+          for i,line in enumerate(main.splitlines(),1):
+              low=line.lower()
+              if "postdelayed" in low or "timeout" in low or "terminalreceived" in low:
+                  native.append({"line":i,"text":line.strip()})
+          out={"native":native,"providers":providers}
+          Path("diag/timeout_lifecycle.json").write_text(json.dumps(out,indent=2,ensure_ascii=False))
+          print(json.dumps(out,indent=2,ensure_ascii=False))
+          PY
+          cp "$MAIN" diag/MainActivity.kt
+          cp "$ROOT"/app/src/main/assets/nexus/*provider*.js diag/
+          cp "$ROOT/RECONCILIATION_LOCK.txt" diag/
+
+      - name: Upload diagnostic sources
+        uses: actions/upload-artifact@v4
+        with:
+          name: V007-provider-diagnostic-harness
+          path: diag/
+          if-no-files-found: error
