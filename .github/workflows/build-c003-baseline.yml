@@ -17,6 +17,10 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: NEXUS governance preflight
+        shell: bash
+        run: python3 governance/golden_guard.py --manifest governance/preflight/build-c003-baseline.json
+
       - name: Validate frozen C002
         shell: bash
         run: |
