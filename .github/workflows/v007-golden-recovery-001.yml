@@ -1,8 +1,8 @@
-name: V007 GOLDEN RECOVERY 005 GEMINI MANUAL AUTH FIX
+name: V007 GOLDEN RECOVERY 006 SHARED PIPELINE FIX
 
 on:
   push:
-    branches: [v007-golden-recovery-005-gemini-manual-auth-fix]
+    branches: [v007-golden-recovery-006-shared-pipeline-fix]
     paths:
       - '.github/workflows/v007-golden-recovery-001.yml'
       - 'golden_recovery001/**'
@@ -10,6 +10,7 @@ on:
       - 'golden_recovery003/**'
       - 'golden_recovery004/**'
       - 'golden_recovery005/**'
+      - 'golden_recovery006/**'
       - 'governance/**'
   pull_request:
     branches: [main]
@@ -103,6 +104,7 @@ jobs:
           python3 golden_recovery003/apply_auth_execution_fix.py             "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
           python3 golden_recovery004/apply_golden_diff_fix.py             "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
           python3 golden_recovery005/apply_gemini_manual_auth_fix.py             "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          python3 golden_recovery006/apply_shared_pipeline_fix.py             "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
 
       - name: Validate Golden recovery invariants
         shell: bash
@@ -130,6 +132,9 @@ jobs:
           grep -F 'function findRetryButton()' "$CHAT"
           grep -F 'CHATGPT_UI_RESPONSE_ERROR_RETRY_AVAILABLE' "$CHAT"
           grep -F 'changed_assistant_count' "$CHAT"
+          grep -F 'userConfirmedSticky' "$CHAT"
+          grep -F 'substantive response to QUESTION' "$CHAT"
+          ! grep -F 'Return exactly frozen_package.output_contract.expected_result_pack as the JSON response.' "$CHAT"
           ! grep -F 'beforeCount=assistantNodes().length' "$CHAT"
 
           grep -F "const CHANNEL='NEXUS_V004_GEMINI_001'" "$GEM"
@@ -142,6 +147,7 @@ jobs:
           grep -F 'user_confirmed_connected===true' "$GEM"
           grep -F 'USER_CONFIRMED_CONNECTED__' "$GEM"
           grep -F 'GEMINI_NOT_AUTHENTICATED' "$GEM"
+          grep -F 'userConfirmedSticky' "$GEM"
           ! grep -F 'beforeCount=modelResponseNodes().length' "$GEM"
 
           # Z.ai send/submission and M024 prompt remain current; result capture is restored to the DEVICE-PASS Golden strategy.
@@ -155,6 +161,7 @@ jobs:
           ! grep -F 'parseCompleteResultCandidate(txt,envelope)' "$ZAI"
           ! grep -F 'changed_response_count' "$ZAI"
           grep -F 'Research policy OPTIONAL' "$ZAI"
+          ! grep -F 'Return exactly frozen_package.output_contract.expected_result_pack as the JSON response.' "$ZAI"
 
           # Manual login/confirmation remains authoritative; stale auth state cannot block after explicit confirmation.
           grep -F 'private val manualProviderConfirmationMode = true' "$MAIN"
@@ -178,11 +185,16 @@ jobs:
           grep -F 'Rapport des échanges NEXUS ↔' "$MAIN"
           grep -F 'Cycle courant uniquement' "$MAIN"
           grep -F 'finishReadableMonitorReport(true' "$MAIN"
+          grep -F 'explicitResearchRequested' "$MAIN"
+          grep -F 'JobType.POPINT_RESEARCH' "$MAIN"
+          grep -F 'ANDROID_RESULT_ANSWER_PLACEHOLDER' "$MAIN"
+          grep -F 'ScrollingMovementMethod.getInstance()' "$MAIN"
+          grep -F 'maxHeight = (420 * resources.displayMetrics.density).toInt()' "$MAIN"
 
-          grep -F 'versionCode = 77' "$ROOT/app/build.gradle.kts"
-          grep -F 'versionName = "0.0.77-v007-golden-recovery005-gemini-manual-auth-fix"' "$ROOT/app/build.gradle.kts"
+          grep -F 'versionCode = 78' "$ROOT/app/build.gradle.kts"
+          grep -F 'versionName = "0.0.78-v007-golden-recovery006-shared-pipeline-fix"' "$ROOT/app/build.gradle.kts"
 
-          printf 'GOLDEN_RECOVERY_005_STATIC_RESULT pass=1 fail=0\n' | tee /tmp/STATIC.txt
+          printf 'GOLDEN_RECOVERY_006_STATIC_RESULT pass=1 fail=0\n' | tee /tmp/STATIC.txt
 
       - uses: actions/setup-java@v5
         with:
@@ -216,27 +228,27 @@ jobs:
           APK="$ROOT/app/build/outputs/apk/debug/app-debug.apk"
           AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
           "$AAPT" dump badging "$APK" | tee /tmp/BADGING.txt
-          grep -F "versionCode='77'" /tmp/BADGING.txt
+          grep -F "versionCode='78'" /tmp/BADGING.txt
           grep -F "application-label:'NEXUS'" /tmp/BADGING.txt
 
-          cp "$APK" NEXUS-V007-GOLDEN-RECOVERY-005-debug.apk
-          sha256sum NEXUS-V007-GOLDEN-RECOVERY-005-debug.apk | tee NEXUS-V007-GOLDEN-RECOVERY-005-debug.apk.sha256
+          cp "$APK" NEXUS-V007-GOLDEN-RECOVERY-006-debug.apk
+          sha256sum NEXUS-V007-GOLDEN-RECOVERY-006-debug.apk | tee NEXUS-V007-GOLDEN-RECOVERY-006-debug.apk.sha256
           cp "$ROOT/RECONCILIATION_LOCK.txt" .
 
       - name: Upload installable APK
         uses: actions/upload-artifact@v7
         with:
-          name: NEXUS-V007-GOLDEN-RECOVERY-005-debug.apk
-          path: NEXUS-V007-GOLDEN-RECOVERY-005-debug.apk
+          name: NEXUS-V007-GOLDEN-RECOVERY-006-debug.apk
+          path: NEXUS-V007-GOLDEN-RECOVERY-006-debug.apk
           archive: false
           if-no-files-found: error
 
       - name: Upload evidence
         uses: actions/upload-artifact@v4
         with:
-          name: NEXUS-V007-GOLDEN-RECOVERY-005-evidence
+          name: NEXUS-V007-GOLDEN-RECOVERY-006-evidence
           path: |
-            NEXUS-V007-GOLDEN-RECOVERY-005-debug.apk.sha256
+            NEXUS-V007-GOLDEN-RECOVERY-006-debug.apk.sha256
             RECONCILIATION_LOCK.txt
             /tmp/CORE.txt
             /tmp/STATIC.txt
