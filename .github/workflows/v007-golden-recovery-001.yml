@@ -33,6 +33,20 @@ jobs:
           path: legacy
           fetch-depth: 1
 
+      - name: Checkout ChatGPT Golden source
+        uses: actions/checkout@v6
+        with:
+          ref: cb82ece5e9a29a21115b5127cee69fd5b9a06987
+          path: golden_chatgpt
+          fetch-depth: 1
+
+      - name: Checkout Gemini Golden source
+        uses: actions/checkout@v6
+        with:
+          ref: 48494565af818bf6859ba4fa90e2e8d0db0397fa
+          path: golden_gemini
+          fetch-depth: 1
+
       - name: Generate candidate strictly from frozen C003
         shell: bash
         run: |
@@ -51,6 +65,18 @@ jobs:
           python3 legacy/reconcile001/apply_reconcile.py             "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
 
           python3 legacy/reconcile019/provider_runtime_019.py             "$GITHUB_WORKSPACE/legacy"             "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+
+          # Reconstruct exact certified provider assets from their DEVICE-PASS commits.
+          rm -rf golden_chatgpt/base golden_chatgpt/work golden_gemini/base golden_gemini/work
+          mkdir -p golden_chatgpt/base golden_chatgpt/work golden_gemini/base golden_gemini/work
+          unzip -q golden_chatgpt/V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d golden_chatgpt/base
+          python3 golden_chatgpt/executionproof006_uiretry1/derive.py "$GITHUB_WORKSPACE/golden_chatgpt" "$GITHUB_WORKSPACE/golden_chatgpt/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+
+          unzip -q golden_gemini/V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d golden_gemini/base
+          python3 golden_gemini/geminiproof001/derive.py "$GITHUB_WORKSPACE/golden_gemini" "$GITHUB_WORKSPACE/golden_gemini/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+
+          cp golden_chatgpt/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/src/main/assets/nexus/chatgpt_provider_c002.js work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/src/main/assets/nexus/chatgpt_provider_c002.js
+          cp golden_gemini/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/src/main/assets/nexus/gemini_provider_c002.js work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/src/main/assets/nexus/gemini_provider_c002.js
 
           python3 golden_recovery001/apply_capture_repair.py             "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
 
@@ -73,10 +99,12 @@ jobs:
           # Golden capture behavior preserved, only count-only assumption removed.
           grep -F 'function assistantSnapshot()' "$CHAT"
           grep -F 'waitForAssistantResult(beforeSnapshot,envelope,80000)' "$CHAT"
+          grep -F 'function findRetryButton()' "$CHAT"
           grep -F 'CHATGPT_UI_RESPONSE_ERROR_RETRY_AVAILABLE' "$CHAT"
           grep -F 'changed_assistant_count' "$CHAT"
           ! grep -F 'beforeCount=assistantNodes().length' "$CHAT"
 
+          grep -F "const CHANNEL='NEXUS_V004_GEMINI_001'" "$GEM"
           grep -F 'function modelResponseSnapshot()' "$GEM"
           grep -F 'waitForModelResult(bridgeRunId,beforeSnapshot,envelope)' "$GEM"
           grep -F 'GEMINI_PROMPT_SUBMISSION_NOT_ESTABLISHED' "$GEM"
