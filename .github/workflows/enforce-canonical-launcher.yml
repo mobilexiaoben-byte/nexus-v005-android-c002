@@ -46,6 +46,8 @@ jobs:
           verifier = 'uses: mobilexiaoben-byte/nexus-v005-android-c002/branding/verify-apk@main'
 
           for path in sorted(list(root.glob('*.yml')) + list(root.glob('*.yaml'))):
+              if path.name == 'enforce-canonical-launcher.yml':
+                  continue
               text = path.read_text(encoding='utf-8')
               if not build_re.search(text):
                   continue
