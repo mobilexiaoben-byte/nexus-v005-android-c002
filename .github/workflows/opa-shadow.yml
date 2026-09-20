@@ -1,0 +1,74 @@
+name: NEXUS OPA Shadow Validation
+
+on:
+  push:
+    branches:
+      - 'nexus-opa-shadow-*'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  opa-shadow:
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install pinned OPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSLo opa https://openpolicyagent.org/downloads/v1.20.2/opa_linux_amd64_static
+          echo "69da5179ee403d10fa11bab6cfb4ffb0d23dba5f9b682fa977db772a1da5670f  opa" | sha256sum -c -
+          chmod +x opa
+          sudo mv opa /usr/local/bin/opa
+          opa version
+
+      - name: Run Rego unit tests
+        run: opa test governance/opa -v
+
+      - name: Run guard/OPA parity corpus
+        run: python3 governance/opa/parity_corpus.py
+
+      - name: Export current preflight input
+        run: |
+          python3 governance/opa/export_preflight_input.py             --manifest governance/preflight/android-provider-runtime.json             --output governance/opa/current-input.json
+
+      - name: Evaluate OPA shadow decision
+        shell: bash
+        run: |
+          set -euo pipefail
+          opa eval             --format pretty             --data governance/opa/nexus_shadow.rego             --input governance/opa/current-input.json             'data.nexus.shadow.decision' | tee opa-shadow-decision.txt
+
+      - name: Compare with existing golden guard without enforcing
+        shell: bash
+        run: |
+          set +e
+          python3 governance/golden_guard.py             --manifest governance/preflight/android-provider-runtime.json             > golden-guard.out 2> golden-guard.err
+          GUARD_RC=$?
+          set -e
+
+          OPA_ALLOW="$(opa eval --format raw             --data governance/opa/nexus_shadow.rego             --input governance/opa/current-input.json             'data.nexus.shadow.allow')"
+
+          if [ "$GUARD_RC" -eq 0 ]; then
+            GUARD_ALLOW=true
+          else
+            GUARD_ALLOW=false
+          fi
+
+          echo "golden_guard_allow=$GUARD_ALLOW"
+          echo "opa_shadow_allow=$OPA_ALLOW"
+
+          if [ "$GUARD_ALLOW" = "$OPA_ALLOW" ]; then
+            echo "NEXUS_OPA_SHADOW_PARITY=PASS"
+          else
+            echo "NEXUS_OPA_SHADOW_PARITY=MISMATCH"
+          fi
+
+          echo "Shadow mode only: this step never authorizes, blocks, promotes, or releases a NEXUS candidate."
+          exit 0
