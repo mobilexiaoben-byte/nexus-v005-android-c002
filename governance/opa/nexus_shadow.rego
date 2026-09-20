@@ -18,11 +18,13 @@ protected_component_statuses := {
     "ACTIVE_REQUIRED_REPLAY",
 }
 
-deny contains msg if {
-    missing := required_manifest_keys - object.keys(input.manifest)
-    count(missing) > 0
-    msg := sprintf("missing keys: %s", [concat(",", sort([x | some x in missing]))])
-}
+deny contains "missing keys: roadmap_workstream" if { not input.manifest.roadmap_workstream }
+deny contains "missing keys: candidate_classification" if { not input.manifest.candidate_classification }
+deny contains "missing keys: affected_golden_paths" if { not input.manifest.affected_golden_paths }
+deny contains "missing keys: required_components" if { not input.manifest.required_components }
+deny contains "missing keys: change_scope" if { not input.manifest.change_scope }
+deny contains "missing keys: replay_plan" if { not input.manifest.replay_plan }
+deny contains "missing keys: baseline" if { not input.manifest.baseline }
 
 deny contains "candidate_classification must be UNVALIDATED_CANDIDATE" if {
     input.manifest.candidate_classification != "UNVALIDATED_CANDIDATE"
