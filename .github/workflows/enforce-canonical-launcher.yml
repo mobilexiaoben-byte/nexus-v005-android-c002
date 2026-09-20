@@ -1,0 +1,84 @@
+name: Enforce Canonical NEXUS Launcher Contract
+
+on:
+  push:
+    branches:
+      - '**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  enforce:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
+      - name: Enforce frozen C003 baseline on active APK workflows
+        shell: bash
+        env:
+          CURRENT_BRANCH: ${{ github.ref_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import os, re, subprocess, sys
+
+          root = Path('.github/workflows')
+          branch = os.environ.get('CURRENT_BRANCH', '')
+          before = os.environ.get('BEFORE_SHA', '')
+          changed = set()
+          if before and before != '0' * 40:
+              p = subprocess.run(['git','diff','--name-only',before,'HEAD','--','.github/workflows'], text=True, capture_output=True)
+              if p.returncode == 0:
+                  changed = {x.strip() for x in p.stdout.splitlines() if x.strip()}
+
+          failures = []
+          checked = []
+          build_re = re.compile(r'\b(?:gradle|\./gradlew)\b[^\n]*(?:assemble|bundle)(?:Debug|Release)?', re.I)
+          preflight_re = re.compile(r'python3\s+governance/golden_guard\.py\s+--manifest\s+(governance/preflight/[A-Za-z0-9_.-]+\.json)')
+          c003_archive = 'V005_ANDROID_CHROMIUM_WEBVIEW_C003.zip'
+          c003_sha = '69f88ce310515d94c7225a080d615c64c7bc3dac786cc2a9d590901599fa6670'
+          verifier = 'uses: mobilexiaoben-byte/nexus-v005-android-c002/branding/verify-apk@main'
+
+          for path in sorted(list(root.glob('*.yml')) + list(root.glob('*.yaml'))):
+              if path.name == 'enforce-canonical-launcher.yml':
+                  continue
+              text = path.read_text(encoding='utf-8')
+              if not build_re.search(text):
+                  continue
+              active = branch == 'main' or branch in text or str(path) in changed
+              if not active:
+                  continue
+              checked.append(str(path))
+              m = preflight_re.search(text)
+              if not m:
+                  failures.append(f'{path}: missing mandatory machine-checkable NEXUS Golden preflight')
+              else:
+                  manifest = m.group(1)
+                  proc = subprocess.run(['python3','governance/golden_guard.py','--manifest',manifest], text=True, capture_output=True)
+                  print(proc.stdout, end='')
+                  if proc.returncode != 0:
+                      failures.append(f'{path}: governance preflight failed for {manifest}: {proc.stderr.strip()}')
+              if c003_archive not in text:
+                  failures.append(f'{path}: must build from frozen C003 baseline')
+              if c003_sha not in text:
+                  failures.append(f'{path}: missing frozen C003 SHA-256')
+              if verifier not in text:
+                  failures.append(f'{path}: missing final APK launcher verification')
+
+          if not checked:
+              print('No active APK build workflow required checking.')
+          else:
+              print('Checked active APK workflows:')
+              for x in checked: print(' -', x)
+          if failures:
+              print('\nC003 BASELINE CONTRACT: FAIL', file=sys.stderr)
+              for x in failures: print(' -', x, file=sys.stderr)
+              raise SystemExit(1)
+          print('NEXUS_ANDROID_C003_BASELINE_WORKFLOW_CONTRACT=PASS')
+          PY
