@@ -43,6 +43,9 @@ for p in provider_paths:
         "'- Research policy OPTIONAL: external research may be used when useful and permitted.'",
         "'- Research policy OPTIONAL: external research may be used when useful and permitted by source_policy.'"
     )
+    follow = "'- Follow the resolved M024 execution policy carried by the envelope.',"
+    if follow in js and "Research policy OPTIONAL:" not in js:
+        js = js.replace(follow, follow + policy_expr + ",", 1)
     p.write_text(js)
 
 s = main_path.read_text()
