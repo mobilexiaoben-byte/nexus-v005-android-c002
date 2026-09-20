@@ -22,24 +22,29 @@ valid_input := {
 
 test_valid_allows if {
     shadow.allow with input as valid_input
-    count(shadow.deny with input as valid_input) == 0
+    ds := shadow.deny with input as valid_input
+    count(ds) == 0
 }
 
 test_missing_baseline_denies if {
     mutated := object.union(valid_input, {"baseline_observation": {"exists": false, "actual_sha256": null}})
     not shadow.allow with input as mutated
-    "required frozen baseline missing" in shadow.deny with input as mutated
+    ds := shadow.deny with input as mutated
+    "required frozen baseline missing" in ds
 }
 
 test_component_mismatch_denies if {
     manifest2 := object.union(valid_input.manifest, {"required_components": ["COMP-X"]})
     mutated := object.union(valid_input, {"manifest": manifest2})
     not shadow.allow with input as mutated
-    "required_components mismatch" in shadow.deny with input as mutated
+    ds := shadow.deny with input as mutated
+    "required_components mismatch" in ds
 }
 
 test_missing_replay_denies if {
     manifest2 := object.union(valid_input.manifest, {"replay_plan": []})
     mutated := object.union(valid_input, {"manifest": manifest2})
     not shadow.allow with input as mutated
+    ds := shadow.deny with input as mutated
+    count(ds) > 0
 }
