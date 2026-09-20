@@ -2,7 +2,7 @@ name: V007 M024 U013 PROVIDER RUNTIME 018 PROVIDER ORIGIN FIX
 
 on:
   push:
-    branches: [v007-m024-u013-provider-runtime-018-provider-regression-fix]
+    branches: [v007-m024-u013-provider-runtime-019-web-monitor-fix]
     paths:
       - '.github/workflows/v007-m024-u013-provider-runtime-018.yml'
       - 'reconcile001/**'
@@ -20,6 +20,7 @@ on:
       - 'reconcile016/**'
       - 'reconcile017/**'
       - 'reconcile018/**'
+      - 'reconcile019/**'
   workflow_dispatch:
 
 permissions:
@@ -59,13 +60,13 @@ jobs:
           set -euo pipefail
           python3 reconcile001/apply_reconcile.py "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
 
-      - name: Apply Runtime018 provider-origin correction
+      - name: Apply Runtime019 web and monitor correction
         shell: bash
         run: |
           set -euo pipefail
-          python3 reconcile018/provider_runtime_018.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          python3 reconcile019/provider_runtime_019.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
 
-      - name: Validate Runtime018 and preserved invariants
+      - name: Validate Runtime019 compatibility
         shell: bash
         run: |
           set -euo pipefail
@@ -118,8 +119,8 @@ jobs:
           grep -F 'monitorPass()' "$MAIN"
           grep -F 'text = "Rapport"' "$MAIN"
 
-          grep -F 'versionCode = 71' "$ROOT/app/build.gradle.kts"
-          grep -F 'versionName = "0.0.71-v007-m024-u013-provider-runtime018-provider-origin-fix"' "$ROOT/app/build.gradle.kts"
+          grep -F 'versionCode = 72' "$ROOT/app/build.gradle.kts"
+          grep -F 'versionName = "0.0.72-v007-m024-u013-provider-runtime019-web-monitor-fix"' "$ROOT/app/build.gradle.kts"
           printf 'PROVIDER_RUNTIME_018_STATIC_RESULT pass=35 fail=0\n' | tee /tmp/STATIC018.txt
 
       - uses: actions/setup-java@v5
@@ -153,23 +154,23 @@ jobs:
           grep -F "versionCode='71'" /tmp/BADGING.txt
           grep -F "application-label:'NEXUS'" /tmp/BADGING.txt
           unzip -l "$APK" | grep -F 'assets/nexus/nexus_existing_guest_monitor_patch.js'
-          cp "$APK" NEXUS-V007-M024-U013-PROVIDER-RUNTIME-018-PROVIDER-ORIGIN-FIX-debug.apk
-          sha256sum NEXUS-V007-M024-U013-PROVIDER-RUNTIME-018-PROVIDER-ORIGIN-FIX-debug.apk | tee NEXUS-V007-M024-U013-PROVIDER-RUNTIME-018-PROVIDER-ORIGIN-FIX-debug.apk.sha256
+          cp "$APK" NEXUS-V007-M024-U013-PROVIDER-RUNTIME-019-WEB-MONITOR-FIX-debug.apk
+          sha256sum NEXUS-V007-M024-U013-PROVIDER-RUNTIME-019-WEB-MONITOR-FIX-debug.apk | tee NEXUS-V007-M024-U013-PROVIDER-RUNTIME-019-WEB-MONITOR-FIX-debug.apk.sha256
           cp "$ROOT/RECONCILIATION_LOCK.txt" .
 
       - name: Upload installable APK directly
         uses: actions/upload-artifact@v7
         with:
-          path: NEXUS-V007-M024-U013-PROVIDER-RUNTIME-018-PROVIDER-ORIGIN-FIX-debug.apk
+          path: NEXUS-V007-M024-U013-PROVIDER-RUNTIME-019-WEB-MONITOR-FIX-debug.apk
           archive: false
           if-no-files-found: error
 
       - name: Upload evidence bundle
         uses: actions/upload-artifact@v4
         with:
-          name: NEXUS-V007-M024-U013-PROVIDER-RUNTIME-018-PROVIDER-ORIGIN-FIX-evidence
+          name: NEXUS-V007-M024-U013-PROVIDER-RUNTIME-019-WEB-MONITOR-FIX-evidence
           path: |
-            NEXUS-V007-M024-U013-PROVIDER-RUNTIME-018-PROVIDER-ORIGIN-FIX-debug.apk.sha256
+            NEXUS-V007-M024-U013-PROVIDER-RUNTIME-019-WEB-MONITOR-FIX-debug.apk.sha256
             RECONCILIATION_LOCK.txt
             /tmp/C002_VALIDATION.txt
             /tmp/CORE.txt
