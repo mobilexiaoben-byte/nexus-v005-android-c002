@@ -1,8 +1,8 @@
-name: V007 GOLDEN RECOVERY 003 AUTH EXEC FIX
+name: V007 GOLDEN DIFF AUDIT 001
 
 on:
   push:
-    branches: [v007-golden-recovery-003-auth-exec-fix]
+    branches: [v007-golden-diff-audit-001]
     paths:
       - '.github/workflows/v007-golden-recovery-001.yml'
       - 'golden_recovery001/**'
@@ -99,6 +99,18 @@ jobs:
           python3 golden_recovery001/apply_capture_repair.py             "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
           python3 golden_recovery002/apply_device_fixes.py             "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
           python3 golden_recovery003/apply_auth_execution_fix.py             "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+
+      - name: Upload generated source for Golden diff
+        uses: actions/upload-artifact@v4
+        with:
+          name: V007-GOLDEN-DIFF-AUDIT-001-generated-source
+          path: |
+            work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/src/main/java/nexus/android/c002/MainActivity.kt
+            work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/src/main/java/nexus/android/c002/core/TransportContract.kt
+            work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/src/main/assets/nexus/chatgpt_provider_c002.js
+            work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/src/main/assets/nexus/gemini_provider_c002.js
+            work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/src/main/assets/nexus/zai_provider_c002.js
+          if-no-files-found: error
 
       - name: Validate Golden recovery invariants
         shell: bash
