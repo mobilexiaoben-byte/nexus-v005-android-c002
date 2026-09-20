@@ -197,3 +197,21 @@ assert "providerResultBudgetMs(envelope)" in c
 assert "CHATGPT_UI_RESPONSE_ACTIVITY" in c
 assert "providerResultBudgetMs(envelope)" in g
 assert "GEMINI_UI_RESPONSE_ACTIVITY" in g
+
+# Diagnostic candidate identity only. No PASS/promotion is implied.
+gradle=root/"app/build.gradle.kts"
+b=gradle.read_text()
+assert "versionCode = 79" in b
+assert 'versionName = "0.0.79-v007-golden-recovery007-provider-device-repair"' in b
+b=b.replace("versionCode = 79","versionCode = 80",1)
+b=b.replace('versionName = "0.0.79-v007-golden-recovery007-provider-device-repair"',
+            'versionName = "0.0.80-v007-provider-watchdog-diagnostic"',1)
+gradle.write_text(b)
+
+lock=root/"RECONCILIATION_LOCK.txt"
+lock.write_text(lock.read_text()+
+    "V007_WATCHDOG_DIAGNOSTIC_NATIVE=ACTIVITY_BASED_IDLE_AND_HARD_LIMITS\\n"+
+    "V007_WATCHDOG_DIAGNOSTIC_CHATGPT=REQUIRED_600S_WITH_RESPONSE_ACTIVITY_HEARTBEAT\\n"+
+    "V007_WATCHDOG_DIAGNOSTIC_GEMINI=REQUIRED_600S_WITH_RESPONSE_ACTIVITY_HEARTBEAT\\n"+
+    "V007_WATCHDOG_DIAGNOSTIC_TERMINAL_PASS=AFTER_CORRELATION_PROVIDER_OK_RESULT_VALIDATION\\n"+
+    "V007_WATCHDOG_DIAGNOSTIC_DEVICE_PASS=NOT_YET_ACQUIRED\\n")
