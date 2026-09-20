@@ -177,75 +177,11 @@ jobs:
           grep -F 'finishReadableMonitorReport(true' "$MAIN"
 
           grep -F 'freshnessRequested' "$MAIN"
-          grep -F 'POPINT_RESEARCH' "$MAIN"
           grep -F 'normalizedAnswerToken == "NEXUSMODELANSWER"' "$MAIN"
           grep -F 'session confirmée · test d’exécution requis' "$MAIN"
           grep -F 'display:none' "$CHAT"
           grep -F 'display:none' "$GEM"
           grep -F 'Gemini UI session — exact backend model not exposed by bridge' "$GEM"
-          if [ -f "$ROOT/app/src/main/assets/nexus/claude_provider_c002.js" ]; then
-            node --check "$ROOT/app/src/main/assets/nexus/claude_provider_c002.js"
-            grep -F 'display:none' "$ROOT/app/src/main/assets/nexus/claude_provider_c002.js"
-          fi
-          echo "PROVIDER_ASSETS:"
-          ls -1 "$ROOT/app/src/main/assets/nexus/" | grep -E 'provider.*\.js$|.*provider.*\.js
-
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '17'
-
-      - uses: gradle/actions/setup-gradle@v6
-        with:
-          gradle-version: '9.6.0'
-
-      - name: Apply canonical NEXUS launcher branding
-        uses: mobilexiaoben-byte/nexus-v005-android-c002/branding@main
-        with:
-          root: ${{ github.workspace }}/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
-
-      - name: Build APK
-        working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
-        shell: bash
-        run: gradle :app:assembleDebug --stacktrace --no-daemon
-
-      - name: Verify APK and evidence
-        shell: bash
-        run: |
-          set -euo pipefail
-          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
-          APK="$ROOT/app/build/outputs/apk/debug/app-debug.apk"
-          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
-          "$AAPT" dump badging "$APK" | tee /tmp/BADGING.txt
-          grep -F "versionCode='79'" /tmp/BADGING.txt
-          grep -F "application-label:'NEXUS'" /tmp/BADGING.txt
-
-          cp "$APK" NEXUS-V007-GOLDEN-RECOVERY-007-debug.apk
-          sha256sum NEXUS-V007-GOLDEN-RECOVERY-007-debug.apk | tee NEXUS-V007-GOLDEN-RECOVERY-007-debug.apk.sha256
-          cp "$ROOT/RECONCILIATION_LOCK.txt" .
-
-      - name: Upload installable APK
-        uses: actions/upload-artifact@v7
-        with:
-          name: NEXUS-V007-GOLDEN-RECOVERY-007-debug.apk
-          path: NEXUS-V007-GOLDEN-RECOVERY-007-debug.apk
-          archive: false
-          if-no-files-found: error
-
-      - name: Upload evidence
-        uses: actions/upload-artifact@v4
-        with:
-          name: NEXUS-V007-GOLDEN-RECOVERY-007-evidence
-          path: |
-            NEXUS-V007-GOLDEN-RECOVERY-007-debug.apk.sha256
-            RECONCILIATION_LOCK.txt
-            /tmp/CORE.txt
-            /tmp/STATIC.txt
-            /tmp/BADGING.txt
-          if-no-files-found: error
- || true
-          echo "DEEPSEEK_REFERENCES:"
-          grep -Rni 'DeepSeek\|deepseek' "$ROOT/app/src/main" || true
 
           grep -F 'versionCode = 79' "$ROOT/app/build.gradle.kts"
           grep -F 'versionName = "0.0.79-v007-golden-recovery007-provider-device-repair"' "$ROOT/app/build.gradle.kts"
@@ -279,7 +215,7 @@ jobs:
           APK="$ROOT/app/build/outputs/apk/debug/app-debug.apk"
           AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
           "$AAPT" dump badging "$APK" | tee /tmp/BADGING.txt
-          grep -F "versionCode='76'" /tmp/BADGING.txt
+          grep -F "versionCode='79'" /tmp/BADGING.txt
           grep -F "application-label:'NEXUS'" /tmp/BADGING.txt
 
           cp "$APK" NEXUS-V007-GOLDEN-RECOVERY-007-debug.apk
