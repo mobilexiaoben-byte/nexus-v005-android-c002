@@ -51,7 +51,7 @@ golden_wait = """  async function waitForModelResult(bridgeRunId,beforeCount,tim
     }
     throw new Error('ZAI_RESPONSE_TIMEOUT_BEFORE_STABLE_COMPLETE_JSON__response_nodes='+String(lastCount));
   }
-  async function executeJob"""
+"""
 z = z[:m_start] + golden_wait + z[m_end:]
 
 old = "      const beforeCount=responseNodes().length; const beforeSnapshot=responseSnapshot(); const prompt=buildPrompt(envelope); setComposerText(composer,prompt); const send=await waitForSendReady(composer);"
