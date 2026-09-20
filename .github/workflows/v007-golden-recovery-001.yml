@@ -128,7 +128,7 @@ jobs:
           grep -F 'user_confirmed_connected===true' "$CHAT"
           grep -F "USER_CONFIRMED_CONNECTED__" "$CHAT"
           grep -F 'function assistantSnapshot()' "$CHAT"
-          grep -F 'waitForAssistantResult(beforeSnapshot,envelope,80000)' "$CHAT"
+          grep -F 'waitForAssistantResult(bridgeRunId,beforeSnapshot,envelope,providerResultBudgetMs(envelope))' "$CHAT"
           grep -F 'function findRetryButton()' "$CHAT"
           grep -F 'CHATGPT_UI_RESPONSE_ERROR_RETRY_AVAILABLE' "$CHAT"
           grep -F 'changed_assistant_count' "$CHAT"
@@ -136,7 +136,7 @@ jobs:
 
           grep -F "const CHANNEL='NEXUS_V004_GEMINI_001'" "$GEM"
           grep -F 'function modelResponseSnapshot()' "$GEM"
-          grep -F 'waitForModelResult(bridgeRunId,beforeSnapshot,envelope)' "$GEM"
+          grep -F 'waitForModelResult(bridgeRunId,beforeSnapshot,envelope,providerResultBudgetMs(envelope))' "$GEM"
           grep -F 'GEMINI_PROMPT_SUBMISSION_NOT_ESTABLISHED' "$GEM"
           grep -F 'changed_response_count' "$GEM"
           grep -F 'submittedUserPromptObserved(envelope)' "$GEM"
