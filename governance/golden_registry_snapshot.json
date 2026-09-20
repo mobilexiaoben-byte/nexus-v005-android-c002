@@ -1,0 +1,71 @@
+{
+  "authority": "NEXUS_PROJECT_CONTROL_LIVE/GOLDEN_PATH_REGISTRY+CERTIFIED_COMPONENT_REGISTRY+GOLDEN_COMPONENT_MAP",
+  "captured_date": "2026-09-20",
+  "golden_paths": {
+    "GP-V005-CHATGPT-ANDROID-UIRETRY1": {
+      "registry_status": "ACTIVE_REFERENCE",
+      "component_ids": [
+        "COMP-ANDROID-V005-OPENAI-UIRETRY1"
+      ],
+      "replay_contract": "Android ChatGPT réel: auth→DESCRIBE→EXECUTE_JOB→ACK→prompt→Result Pack→TERMINAL_RECEIPT_PASS"
+    },
+    "GP-V004-GEMINI-ANDROID-001": {
+      "registry_status": "ACTIVE_REFERENCE",
+      "component_ids": [
+        "COMP-ANDROID-V004-GEMINI-PROOF001"
+      ],
+      "replay_contract": "Gemini DEVICE validé: auth→ACK→soumission réelle→génération→Result Pack→terminal receipt"
+    },
+    "GP-V005-ZAI-ANDROID-001": {
+      "registry_status": "ACTIVE_REFERENCE",
+      "component_ids": [
+        "COMP-ANDROID-V005-ZAI-PROOF001"
+      ],
+      "replay_contract": "Z.ai Android validé: session→dispatch→Result Pack→TERMINAL_RECEIPT_PASS"
+    },
+    "GP-U002-GUEST-ANDROID-MONITOR-SMOKE": {
+      "registry_status": "ACTIVE_REFERENCE",
+      "component_ids": [
+        "COMP-ANDROID-U002-MONITOR-0030"
+      ],
+      "replay_contract": "Monitor Android: AUTHENTICATED + EXECUTION PROOF PASS + TERMINAL_RECEIPT_PASS"
+    },
+    "GP-U004-ANDROID-UX-SHELL004": {
+      "registry_status": "ACTIVE_REFERENCE",
+      "component_ids": [
+        "COMP-ANDROID-U004-UX-SHELL004"
+      ],
+      "replay_contract": "Shell/menu Android DEVICE + menu provider_response→nexus_result→technical_details"
+    },
+    "GP-U007-ANDROID-USER-JOURNEY": {
+      "registry_status": "ACTIVE_REFERENCE",
+      "component_ids": [
+        "COMP-ANDROID-U004-UX-SHELL004",
+        "COMP-ANDROID-V005-OPENAI-UIRETRY1"
+      ],
+      "replay_contract": "Clean-device user journey jusqu'au terminal NEXUS sans manipulation technique"
+    }
+  },
+  "components": {
+    "COMP-ANDROID-V005-OPENAI-UIRETRY1": {
+      "status": "ACTIVE_REFERENCE",
+      "sha256": "b071da8b02e865eec717adfee2b74ce7adfe1adb8430183ebdb789da7a7c9f79"
+    },
+    "COMP-ANDROID-V004-GEMINI-PROOF001": {
+      "status": "ACTIVE_REFERENCE",
+      "sha256": "b5e8e4ea6e93ea9f64f19d3b3ca1c9804dd5d7d7486bcacfacbe6dacc7d8ac3f"
+    },
+    "COMP-ANDROID-V005-ZAI-PROOF001": {
+      "status": "ACTIVE_REFERENCE",
+      "sha256": "09ba59a61f1ffc7d1826e9d7be79facefc2eac831c71075f4a0fe2dce28323ab"
+    },
+    "COMP-ANDROID-U002-MONITOR-0030": {
+      "status": "ACTIVE_REFERENCE_GAP",
+      "sha256": null
+    },
+    "COMP-ANDROID-U004-UX-SHELL004": {
+      "status": "ACTIVE_REFERENCE",
+      "sha256": "70a84d18b140943a41355e5f2b6568c8a5371204f9ac26f0de57d4cb56b12205"
+    }
+  }
+}
