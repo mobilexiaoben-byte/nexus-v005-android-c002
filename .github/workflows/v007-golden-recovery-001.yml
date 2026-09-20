@@ -1,0 +1,152 @@
+name: V007 GOLDEN RECOVERY 001
+
+on:
+  push:
+    branches: [v007-golden-recovery-001]
+    paths:
+      - '.github/workflows/v007-golden-recovery-001.yml'
+      - 'golden_recovery001/**'
+      - 'governance/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Checkout recovery branch
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Mandatory NEXUS Golden preflight
+        shell: bash
+        run: python3 governance/golden_guard.py --manifest governance/preflight/android-provider-runtime.json
+
+      - name: Checkout proven Runtime019 web-monitor lineage as source material
+        uses: actions/checkout@v6
+        with:
+          ref: v007-m024-u013-provider-runtime-019-web-monitor-fix
+          path: legacy
+          fetch-depth: 1
+
+      - name: Generate candidate strictly from frozen C003
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '69f88ce310515d94c7225a080d615c64c7bc3dac786cc2a9d590901599fa6670  V005_ANDROID_CHROMIUM_WEBVIEW_C003.zip' | sha256sum -c -
+
+          # Force the historical derivation chain to consume C003, not its old C002 file.
+          cp V005_ANDROID_CHROMIUM_WEBVIEW_C003.zip legacy/V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip
+          rm -rf legacy/base work
+          mkdir -p legacy/base work
+          unzip -q legacy/V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d legacy/base
+          test -f legacy/base/V005_ANDROID_CHROMIUM_WEBVIEW_C002/settings.gradle.kts
+
+          python3 legacy/u013ux009/derive.py             "$GITHUB_WORKSPACE/legacy"             "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+
+          python3 legacy/reconcile001/apply_reconcile.py             "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+
+          python3 legacy/reconcile019/provider_runtime_019.py             "$GITHUB_WORKSPACE/legacy"             "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+
+          python3 golden_recovery001/apply_capture_repair.py             "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+
+      - name: Validate Golden recovery invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          CHAT="$ROOT/app/src/main/assets/nexus/chatgpt_provider_c002.js"
+          GEM="$ROOT/app/src/main/assets/nexus/gemini_provider_c002.js"
+          MAIN="$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt"
+          TC="$ROOT/app/src/main/java/nexus/android/c002/core/TransportContract.kt"
+
+          "$ROOT/run_core_tests.sh" | tee /tmp/CORE.txt
+          grep -F 'fail=0' /tmp/CORE.txt
+
+          node --check "$CHAT"
+          node --check "$GEM"
+
+          # Golden capture behavior preserved, only count-only assumption removed.
+          grep -F 'function assistantSnapshot()' "$CHAT"
+          grep -F 'waitForAssistantResult(beforeSnapshot,envelope,80000)' "$CHAT"
+          grep -F 'CHATGPT_UI_RESPONSE_ERROR_RETRY_AVAILABLE' "$CHAT"
+          grep -F 'changed_assistant_count' "$CHAT"
+          ! grep -F 'beforeCount=assistantNodes().length' "$CHAT"
+
+          grep -F 'function modelResponseSnapshot()' "$GEM"
+          grep -F 'waitForModelResult(bridgeRunId,beforeSnapshot,envelope)' "$GEM"
+          grep -F 'GEMINI_PROMPT_SUBMISSION_NOT_ESTABLISHED' "$GEM"
+          grep -F 'changed_response_count' "$GEM"
+          ! grep -F 'beforeCount=modelResponseNodes().length' "$GEM"
+
+          # M024 Web policy and readable terminal report remain present.
+          grep -F 'JobType.OPEN_ANALYSIS -> ResearchPolicy.OPTIONAL' "$TC"
+          grep -F 'JobType.CLOSED_AUDIT -> ResearchPolicy.FORBIDDEN' "$TC"
+          ! grep -F 'Do NOT browse the web and do NOT perform external research' "$CHAT"
+          ! grep -F 'Do NOT browse the web and do NOT perform external research' "$GEM"
+          grep -F 'Rapport des échanges NEXUS ↔' "$MAIN"
+          grep -F 'Cycle courant uniquement' "$MAIN"
+          grep -F 'finishReadableMonitorReport(true' "$MAIN"
+
+          grep -F 'versionCode = 73' "$ROOT/app/build.gradle.kts"
+          grep -F 'versionName = "0.0.73-v007-golden-recovery001"' "$ROOT/app/build.gradle.kts"
+
+          printf 'GOLDEN_RECOVERY_001_STATIC_RESULT pass=1 fail=0\n' | tee /tmp/STATIC.txt
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Apply canonical NEXUS launcher branding
+        uses: mobilexiaoben-byte/nexus-v005-android-c002/branding@main
+        with:
+          root: ${{ github.workspace }}/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+
+      - name: Build APK
+        working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+        shell: bash
+        run: gradle :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Verify APK and evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          APK="$ROOT/app/build/outputs/apk/debug/app-debug.apk"
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
+          "$AAPT" dump badging "$APK" | tee /tmp/BADGING.txt
+          grep -F "versionCode='73'" /tmp/BADGING.txt
+          grep -F "application-label:'NEXUS'" /tmp/BADGING.txt
+
+          cp "$APK" NEXUS-V007-GOLDEN-RECOVERY-001-debug.apk
+          sha256sum NEXUS-V007-GOLDEN-RECOVERY-001-debug.apk | tee NEXUS-V007-GOLDEN-RECOVERY-001-debug.apk.sha256
+          cp "$ROOT/RECONCILIATION_LOCK.txt" .
+
+      - name: Upload installable APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-V007-GOLDEN-RECOVERY-001-debug.apk
+          path: NEXUS-V007-GOLDEN-RECOVERY-001-debug.apk
+          archive: false
+          if-no-files-found: error
+
+      - name: Upload evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: NEXUS-V007-GOLDEN-RECOVERY-001-evidence
+          path: |
+            NEXUS-V007-GOLDEN-RECOVERY-001-debug.apk.sha256
+            RECONCILIATION_LOCK.txt
+            /tmp/CORE.txt
+            /tmp/STATIC.txt
+            /tmp/BADGING.txt
+          if-no-files-found: error
