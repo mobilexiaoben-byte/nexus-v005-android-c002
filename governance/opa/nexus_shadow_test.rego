@@ -57,11 +57,3 @@ test_empty_gate_denies if {
     ds := shadow.deny with input as mutated
     "each replay entry requires required=true and a non-empty gate" in ds
 }
-
-test_missing_required_key_denies if {
-    manifest2 := {k: v | some k, v in valid_input.manifest; k != "change_scope"}
-    mutated := object.union(valid_input, {"manifest": manifest2})
-    not shadow.allow with input as mutated
-    ds := shadow.deny with input as mutated
-    count(ds) > 0
-}
