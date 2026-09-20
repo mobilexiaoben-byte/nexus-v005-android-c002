@@ -1,0 +1,20 @@
+{
+  "roadmap_workstream": "V-005",
+  "candidate_classification": "UNVALIDATED_CANDIDATE",
+  "affected_golden_paths": [
+    "GP-V005-CHATGPT-ANDROID-UIRETRY1"
+  ],
+  "required_components": [
+    "COMP-ANDROID-V005-OPENAI-UIRETRY1"
+  ],
+  "change_scope": [
+    "frozen Android baseline rebuild only"
+  ],
+  "replay_plan": [
+    {
+      "golden_path_id": "GP-V005-CHATGPT-ANDROID-UIRETRY1",
+      "required": true,
+      "gate": "DEVICE replay before any successor claim"
+    }
+  ]
+}
