@@ -1,0 +1,36 @@
+name: NEXUS Atelier Chat Sandbox
+on:
+  push:
+    branches: ['nexus-atelier-chat-*']
+    paths: ['atelier/**', 'tests/**', 'run_tests.py', '.github/workflows/atelier-chat-sandbox.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  sandbox-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install OPA version and digest already pinned by existing shadow workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --retry 2 --connect-timeout 15 --max-time 120 -fsSLo opa https://openpolicyagent.org/downloads/v1.20.2/opa_linux_amd64_static
+          echo '69da5179ee403d10fa11bab6cfb4ffb0d23dba5f9b682fa977db772a1da5670f  opa' | sha256sum -c -
+          chmod +x opa
+          echo "OPA_BIN=$GITHUB_WORKSPACE/opa" >> "$GITHUB_ENV"
+          ./opa version
+      - name: Check Rego syntax and safety
+        run: ./opa check --strict atelier/sandbox.rego
+      - name: Exercise real OPA gateway and HTTP boundary
+        env:
+          REQUIRE_OPA: '1'
+        run: python3 run_tests.py
+      - name: Preserve scoped test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: nexus-atelier-sandbox-results
+          path: test-results.json
+          if-no-files-found: error

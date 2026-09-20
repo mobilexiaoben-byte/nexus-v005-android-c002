@@ -1,0 +1,336 @@
+{
+  "source_drive_id": "1mVgrCFCWGK8LwxKHMv7VE2UoFX9c1lI4o_UGp8iadFQ",
+  "source_tab": "ROADMAP NEXUS CURRENT",
+  "snapshot_only": true,
+  "workstreams": [
+    {
+      "id": "V-001",
+      "axis": "VECTEUR",
+      "title": "Intégrer le bridge automatisé dans le vrai NEXUS",
+      "status": "CLOSED",
+      "next": "V-001 CLOSED — C003 0.1.6.4 validée et archivée. Reopen uniquement sur régression, changement matériel du bridge/contrat TURN ou nouvelle exigence. Aucun Guest live, MAIN live, canonicalisation ou release implicite."
+    },
+    {
+      "id": "V-002",
+      "axis": "VECTEUR",
+      "title": "Construire l’installateur / bootstrap desktop",
+      "status": "CLOSED",
+      "next": "CLOSED — V-002 bootstrap desktop validé scoped. Réouverture uniquement sur régression du bootstrap/launcher/bridge, changement d’architecture desktop ou extension de périmètre. La preuve E2E sur machine/OS réellement vierge reste explicitement portée par V-006."
+    },
+    {
+      "id": "V-003",
+      "axis": "VECTEUR",
+      "title": "Construire le premier lancement runtime",
+      "status": "CLOSED",
+      "next": "V-003 CLOSED — premier lancement runtime validé. Reopen uniquement sur régression self-check/init/auth transition/idempotence ou nouvelle exigence runtime."
+    },
+    {
+      "id": "V-004",
+      "axis": "VECTEUR",
+      "title": "Implémenter et tester Gemini",
+      "status": "CLOSED",
+      "next": "V-004 CLOSED — Gemini Android DEVICE PASS acquis et propagé vers V-005. Reopen uniquement sur régression de l’adaptateur/origin/contrat Gemini ou nouvelle exigence."
+    },
+    {
+      "id": "V-005",
+      "axis": "VECTEUR",
+      "title": "Implémenter le transport Android",
+      "status": "HANDOFF",
+      "next": "M-024 adaptation V-005 C004 candidate CI PASS. Handoff vers V-007 DEVICE avec APK C004-M024 ; ne pas promouvoir main avant DEVICE PASS."
+    },
+    {
+      "id": "V-006",
+      "axis": "VECTEUR",
+      "title": "E2E technique desktop sur machine vierge",
+      "status": "HANDOFF",
+      "next": "V006-HUMAN-AUTH-001 — VM vierge install/runtime/reboot/fail-closed PASS ; auth humaine visible puis round-trip restent à faire."
+    },
+    {
+      "id": "V-007",
+      "axis": "VECTEUR",
+      "title": "E2E technique Android sur appareil vierge",
+      "status": "BLOCKED",
+      "next": "GOLDEN RECOVERY 001 CI PASS. Procédure réellement appliquée: baseline C003 gelée + préflight Golden/Components PASS + reconstruction des assets certifiés ChatGPT UIRETRY1 et Gemini V004 depuis leurs commits DEVICE-PASS, puis delta borné de capture texte (snapshot) sans exiger une hausse du nombre de nœuds. M-024 Web OPTIONAL et Rapport lisible/terminal-stop préservés. NEXT DEVICE: installer GOLDEN-RECOVERY-001; replay ChatGPT puis Gemini jusqu'au TERMINAL_RECEIPT_PASS sans timeout; vérifier Web OPTIONAL/audit; vérifier Rapport; puis non-régression Z.ai. Aucun DEVICE PASS avant preuve."
+    },
+    {
+      "id": "V-008",
+      "axis": "VECTEUR",
+      "title": "Éprouver l’acceptation standardisée de nouveaux LLM via Context Pack / Result Pack",
+      "status": "CLOSED",
+      "next": "V-008 CLOSED — objectif fonctionnel multi-LLM considéré atteint avec 4 providers déjà opérationnels dans NEXUS : ChatGPT/OpenAI, Claude/Anthropic, Gemini/Google et Z.ai. Mistral sort du chemin critique ; reprise éventuelle uniquement après retours bêta, régression démontrée ou décision explicite d’élargir la matrice providers."
+    },
+    {
+      "id": "U-001",
+      "axis": "UTILISATION",
+      "title": "Revue utilisateur Guest v1.7.4.26",
+      "status": "CLOSED",
+      "next": "GUEST-UI-RECOVERY-USER-REVIEW-012 — PASS USER 2026-09-06. Candidate corrigée v1.7.4.26 acceptée ; U-001 terminé. Aucun staging, Guest live, MAIN, canonicalisation ou release implicite."
+    },
+    {
+      "id": "U-002",
+      "axis": "UTILISATION",
+      "title": "Adapter Guest au parcours bridge automatisé",
+      "status": "CLOSED",
+      "next": "U-002 CLOSED — adaptation Guest au bridge automatisé finalisée. Desktop final 0.1.6.17 : smoke réel PASS, CONNECTED · COMMITTED, receipt durable COMPLETED et corrélé. Android final 0.0.30-u002-monitor-integrated : smoke DEVICE PASS avec AUTHENTICATED et TERMINAL_RECEIPT_PASS. Reopen uniquement sur régression ou nouvelle exigence. J1 reste PASS. Aucune release implicite."
+    },
+    {
+      "id": "U-003",
+      "axis": "UTILISATION",
+      "title": "Construire l’expérience premier lancement",
+      "status": "CLOSED",
+      "next": "U-003 CLOSED — expérience premier lancement validée humainement. Parcours retenu : système prêt → choix fournisseur → connexion si nécessaire → NEXUS prêt → ouverture de NEXUS dans une nouvelle fenêtre dédiée. Reopen uniquement sur régression UX ou nouvelle exigence produit."
+    },
+    {
+      "id": "U-004",
+      "axis": "UTILISATION",
+      "title": "Construire l’UX Android",
+      "status": "CLOSED",
+      "next": "CLOSED — SHELL 004 DEVICE PASS + MENU_CONTROL_PASS. Successor : U-007 E2E Android."
+    },
+    {
+      "id": "U-005",
+      "axis": "UTILISATION",
+      "title": "Construire le parcours de distribution bêta contrôlée sur invitation",
+      "status": "CLOSED",
+      "next": "CLOSED — CONTROLLED_ANDROID_DISTRIBUTION_RUNTIME PASS. Backend V4 + Admin UI R5 deployed to NEXUS_ADMIN_UNIFIED_REGISTRY stable WebApp @5. Catch-up distribution PASS for GUEST-000004 and exact regression replay GUEST-000005 / lemobaben@visible.fr: per-invitation APK copy created, U005_ANDROID_PACKAGE_SENT_AT + file ID + SHA persisted, ADMIN_BETA_ANDROID_PACKAGE_EMAIL=OK, recipient inbox evidence confirms Android download link + guide PDF. Qualified APK remains nexus.android versionCode 45 SHA-256 7fc61b46d72409b8560f5ad25d9c656abb555bcf6683ea045bfaa4cdda608d24. No public release produced or implied. CURRENT checkpoint 1YIJYwCsuzI0voD-ATLEXrrTn4s7rpcs2Ipym45awOOE. No further action inside U-005."
+    },
+    {
+      "id": "U-006",
+      "axis": "UTILISATION",
+      "title": "E2E parcours utilisateur desktop depuis zéro",
+      "status": "QUEUE",
+      "next": "Prouver que l’utilisateur peut télécharger, installer, se connecter et utiliser NEXUS sans manipulations techniques."
+    },
+    {
+      "id": "U-007",
+      "axis": "UTILISATION",
+      "title": "E2E parcours utilisateur Android",
+      "status": "CLOSED",
+      "next": "CLOSED — parcours utilisateur Android clean-device validé sur appareil avec SHELL 004 ; terminal NEXUS natif atteint sans intervention technique."
+    },
+    {
+      "id": "U-008",
+      "axis": "UTILISATION",
+      "title": "Rejouer la CARTE Guest en navigateur authentifié",
+      "status": "HANDOFF",
+      "next": "GUEST-REAL-UI-E2E-008 — replay réel Guest map/UI dans runtime navigateur authentifié."
+    },
+    {
+      "id": "U-009",
+      "axis": "UTILISATION",
+      "title": "Rejouer Session Index v1.7.4.9 en navigateur",
+      "status": "HANDOFF",
+      "next": "SESSION-INDEX-V1749-BROWSER-001 — replay navigateur query-only, owner-scope, reopen/reload/restauration."
+    },
+    {
+      "id": "U-010",
+      "axis": "UTILISATION",
+      "title": "Valider le gestionnaire HTML en E2E",
+      "status": "CLOSED",
+      "next": "U-010 CLOSED — HTML-MANAGER-E2E-001 PASS. Reopen uniquement sur régression ou changement matériel du gestionnaire HTML/baseline ; aucun Guest/MAIN live, canonicalisation ou release implicite."
+    },
+    {
+      "id": "U-011",
+      "axis": "UTILISATION",
+      "title": "Tester la WebApp trois layouts en runtime",
+      "status": "BLOCKED",
+      "next": "CURRENT 2026-09-20 — WEB_POLICY_AUTHORITY_003 TECH PASS. M-024 est désormais l’unique autorité runtime pour l’accès Web Desktop : legacy external_research ne peut plus écraser/contredire la policy résolue ; OPEN_ANALYSIS→OPTIONAL, CLOSED_AUDIT→FORBIDDEN, FACT_CHECK→REQUIRED, POPINT→REQUIRED, REQUIRED_IF_STALE supporté. Checkpoint Drive 17zJvrtAKY42kbXBMlf_3_-oIFq-HCDgCd1MOh3-o5qI. U-011 reste BLOCKED jusqu’au replay réel. NEXT: 1) compléter Google Review permissions dans le Chromium NEXUS; 2) rejouer ChatGPT/Claude/Z.ai/Gemini/Grok/DeepSeek via vraie Guest UI; 3) vérifier receipts/policy corrélés, notamment Claude; 4) persister U011_PROVIDER_RECONCILE_002.tar.gz hérité; 5) aucune promotion/release sans gates requises."
+    },
+    {
+      "id": "U-012",
+      "axis": "UTILISATION",
+      "title": "Valider la référence du Manifesto public NEXUS",
+      "status": "READY",
+      "next": "U012-INFOGRAPHIC-SVG-FINAL-001 — reprendre d’abord le SVG unique responsive full width ; maximiser la police mobile, réduire/valider la police desktop, aligner les 3 pictos, utiliser le vrai rouge NEXUS ; validation utilisateur obligatoire. Ensuite seulement U012-MANIFESTO-INTEGRATION-002 sur copie candidate après « Le principe de NEXUS », puis U012-VERCEL-PUBLIC-PIPELINE-003 après validation HTML ; ne fournir aucune URL avant contrôle public anonyme réel."
+    },
+    {
+      "id": "M-001",
+      "axis": "MOTEUR",
+      "title": "Brancher VERIFY au runtime réel",
+      "status": "BLOCKED",
+      "next": "WAIT_CR008_EXACT_CORPUS — ne relancer aucune recherche répétitive sans nouvel indice. Si l’artefact/corpus exact CR-008 est retrouvé, exécuter VERIFY-CR008-EXACT-CORPUS-RECOVERY-003 via VERIFY_RUNTIME_ADAPTER_v0.1 puis comparer au baseline. Conserver la preuve d’attachement CR-007 7/7 PASS ; aucun élargissement de R avant replay du corpus exact."
+    },
+    {
+      "id": "M-002",
+      "axis": "MOTEUR",
+      "title": "Brancher Cross-Théâtre au runtime réel",
+      "status": "HANDOFF",
+      "next": "M-002 HANDOFF COMPLETE — A=PASS_WITH_RESERVATION. TH_RELATION validé comme couche analytique structurée derrière la prose. Prototype Guest Relation Explorer validé (NON_CANONICAL) avec accès « Voir les relations », graphe responsive desktop/mobile et infobulles contextuelles. Aucun développement Guest/MAIN sous M-002 ; formaliser un chantier produit séparé avant toute intégration."
+    },
+    {
+      "id": "M-003",
+      "axis": "MOTEUR",
+      "title": "Cross-valider FLUX",
+      "status": "CLOSED",
+      "next": "M-003 CLOSED — FLUX accepted in tested scope with mandatory semantic guard: BIFURCATES = coexistence of divergent trajectories, not causal fork, exclusive branches or irreversible split. Reopen only on new contradictory evidence or material FLUX change."
+    },
+    {
+      "id": "M-004",
+      "axis": "MOTEUR",
+      "title": "Cross-valider Critical Node avec modèle séparé",
+      "status": "HANDOFF",
+      "next": "CRITICAL-NODE-CROSS-VALIDATION-003 — exécuter M004_CRITICAL_NODE_CLAUDE_CROSS_VALIDATION_003 (Drive 14yxoamGgyD8qTBgXDBlV08NScPyRWsI1) dans le profil Chromium NEXUS authentifié Claude ; cliquer « Lancer M-004 — validation indépendante Claude ». PASS transport attendu : ACK + terminal receipt + Result Pack Anthropic corrélés au fingerprint A 1a6437…89f9d. Ensuite comparer la réponse indépendante au supplément B puis user review. Aucun Guest/MAIN live, commit, canonicalisation ou mutation."
+    },
+    {
+      "id": "M-005",
+      "axis": "MOTEUR",
+      "title": "Rejouer Post-Response Auditor avec modèle indépendant",
+      "status": "CLOSED",
+      "next": "M-005 CLOSED — validation multi-modèle indépendante acquise (Claude + Z.ai par handoff humain). Le câblage runtime automatique est transféré au successeur M-023 ; réouvrir M-005 uniquement sur régression du contrat/auditeur ou nouvelle exigence analytique."
+    },
+    {
+      "id": "M-006",
+      "axis": "MOTEUR",
+      "title": "Brancher le dispatcher automatique POPINT",
+      "status": "CLOSED",
+      "next": "POPINT-RUNTIME-DISPATCHER-003 = PASS / CLOSED. Dispatcher automatique POPINT validé en runtime borné : précheck PASS, dispatch idempotent OPEN_EXISTING, replay réel CREATED avec KNOWN_SOURCE_REFERENCE, acquisition ACQUIRED puis OPEN_EXISTING, clôture COMPLETE_EXTERNAL_RESEARCH. Aucun FACTCHECK/O21, aucune auto-inscription source, aucun doublon."
+    },
+    {
+      "id": "M-007",
+      "axis": "MOTEUR",
+      "title": "Définir le shared layer Sources locales / EXPOSURE / POPINT / VERIFY",
+      "status": "CLOSED",
+      "next": "M-007 CLOSED — shared layer Sources locales / VU_DEPUIS / EXPOSURE / POPINT / VERIFY validé dans le périmètre testé. Reopen uniquement sur régression, changement matériel du shared-layer/runtime contract, ou exigence explicite de couverture AUTH_RUNTIME supplémentaire pour EXPOSURE/VERIFY/multi-route. Aucun Guest/MAIN live, canonicalisation, provider dispatch, mutation ou release implicite."
+    },
+    {
+      "id": "M-008",
+      "axis": "MOTEUR",
+      "title": "Éprouver l’auto-routing VU_DEPUIS",
+      "status": "CLOSED",
+      "next": "M-008 CLOSED — VU-AUTO-ROUTING-REAL-001 satisfait dans le périmètre WEB/DIRECTE_00 : cas réel CROSS_PERSPECTIVE déclenché par le routeur exact sans commande explicite @VU_DEPUIS. Reopen uniquement sur régression, changement matériel du routeur/contrat O014, ou exigence explicite de replay Guest/NEXUS AUTH_RUNTIME complet."
+    },
+    {
+      "id": "M-009",
+      "axis": "MOTEUR",
+      "title": "Tester FactCheck v0.2R en runtime Apps Script authentique",
+      "status": "HANDOFF",
+      "next": "FACTCHECK-v0.2R-ISOLATED-LIVE-RUNTIME — déployer/exécuter candidat NON_AUTHORITY avec readback et provenance."
+    },
+    {
+      "id": "M-010",
+      "axis": "MOTEUR",
+      "title": "Rejouer IPL après changement applicable",
+      "status": "QUEUE",
+      "next": "IPL-REAL-REPLAY-001 — rejouer corpus réel uniquement après changement analytique/runtime applicable."
+    },
+    {
+      "id": "M-011",
+      "axis": "MOTEUR",
+      "title": "Créer et éprouver de nouvelles relations CAR réelles",
+      "status": "CLOSED",
+      "next": "M-011 CLOSED — trois relations CAR réelles éprouvées et analytiquement utiles dans le périmètre testé. Reopen uniquement sur régression, changement matériel du contrat CAR, ou proposition explicite de canonicalisation traitant les réserves sémantiques, temporelles, provenance-mapping et directionnalité. Aucun MAIN/Guest live ni canonicalisation implicite."
+    },
+    {
+      "id": "M-012",
+      "axis": "MOTEUR",
+      "title": "Rejouer un scénario Prospectif réel baseliné",
+      "status": "CLOSED",
+      "next": "M-012 CLOSED — replay Prospectif réel baseliné reproduit exactement et croisé avec O015. Reopen uniquement sur régression, changement matériel O015/engine, exigence de forecast rafraîchi, calibration/backtest empirique, ou tentative d’interpréter la probabilité du score synthétique comme probabilité d’un événement réel. Aucun MAIN/Guest live ni canonicalisation implicite."
+    },
+    {
+      "id": "M-013",
+      "axis": "MOTEUR",
+      "title": "Qualifier la maturité réelle des domaines *INT",
+      "status": "CLOSED",
+      "next": "M-013 CLOSED — maturité réelle *INT qualifiée dans le périmètre Hormuz après normalisation des preuves. Reopen uniquement sur changement du modèle de maturité, exigence de preuve du SELECTED_INT pré-collecte original, promotion canonique des Source IDs candidats, nouvelle preuve domaine réelle, ou tentative de revendiquer COMPLETE/capacité permanente depuis ce cas. SIGINT reste M-014."
+    },
+    {
+      "id": "M-014",
+      "axis": "MOTEUR",
+      "title": "Enregistrer puis éprouver SIGINT",
+      "status": "CLOSED",
+      "next": "M-014 CLOSED — SIGINT public/non-opérationnel enregistré et éprouvé par SIGINT-REAL-001. Reopen uniquement sur changement du périmètre légal/licence, besoin d'une collecte indépendante hors sources publiques autorisées, ou tentative de revendiquer une capacité d'interception, déchiffrement, géolocalisation précise, ciblage ou exploitation opérationnelle."
+    },
+    {
+      "id": "M-015",
+      "axis": "MOTEUR",
+      "title": "Rejouer CORE uniquement sur régression/changement transverse",
+      "status": "QUEUE",
+      "next": "CORE-REGRESSION-ON-CHANGE — rejouer invariants CORE uniquement après changement transverse/régression."
+    },
+    {
+      "id": "M-016",
+      "axis": "MOTEUR",
+      "title": "Intégrer le Scheduler / veille différentielle persistante",
+      "status": "CLOSED",
+      "next": "M016-CLOSE-001 = PASS / CLOSED. Chantier M-016 clôturé sur confirmation explicite du propriétaire le 2026-09-13. Aucune action suivante sous M-016 ; toute évolution Scheduler requiert réouverture explicite ou nouveau workstream. Aucune canonicalisation/release implicite."
+    },
+    {
+      "id": "M-017",
+      "axis": "MOTEUR",
+      "title": "Construire le DEEP RESEARCH CONTROLLER",
+      "status": "CLOSED",
+      "next": "CLOSED — DRC-SPEC-001 et DRC-RUNTIME-001 validés. Réouverture uniquement sur régression, changement de contrat/routeur ou extension de périmètre. L’intégration produit éventuelle doit passer par un chantier séparé."
+    },
+    {
+      "id": "M-018",
+      "axis": "MOTEUR",
+      "title": "Construire NEXUS WRITER",
+      "status": "CLOSED",
+      "next": "CLOSED — WRITER-CONTRACT-001, replay réel M-017 et revue qualité humaine acceptés. Réouverture uniquement sur régression, changement de contrat ou extension de formats."
+    },
+    {
+      "id": "M-019",
+      "axis": "MOTEUR",
+      "title": "Construire EDITORIAL QA",
+      "status": "CLOSED",
+      "next": "M019-CLOSED — EDITORIAL QA fermé/canonicalisé scoped après validation humaine explicite de M019-REAL-COMPLEX-001. Toute suite doit passer par nouveau chantier/version ; aucun Guest/MAIN live ni release implicite."
+    },
+    {
+      "id": "M-020",
+      "axis": "MOTEUR",
+      "title": "Construire ADAPTIVE NEXUS — Information Journey / Journey Control",
+      "status": "CLOSED",
+      "next": "M020-CLOSED — M020-J0→J7 exécutés en sandbox et acceptés. Suite autorisée uniquement via chantier produit UI séparé NEXUS Context / Explorer plus loin ; aucune intégration Guest/MAIN implicite."
+    },
+    {
+      "id": "V-009",
+      "axis": "VECTEUR",
+      "title": "Monitorer en direct les échanges LLM - NEXUS",
+      "status": "CLOSED",
+      "next": "CLOSED — ARCH005 0.1.7.2 frozen and handed off. Consume evidence downstream only. Reopen V-009 only by explicit decision; no provider run, retry, H011 or ARCH006."
+    },
+    {
+      "id": "M-021",
+      "axis": "MOTEUR",
+      "title": "Construire le référentiel global de conformité NEXUS ↔ LLM",
+      "status": "CLOSED",
+      "next": "CLOSED — M021-G9 MULTIPROVIDER PASS_SCOPED. Consume frozen compliance workbook/handoff only. Reopen M-021 only by explicit project decision."
+    },
+    {
+      "id": "M-022",
+      "axis": "MOTEUR",
+      "title": "Construire FC-PROVENANCE-v0.1 — outil autonome de traçage de provenance pour Fact Check",
+      "status": "CLOSED",
+      "next": "M-022 CLOSED — FC-PROVENANCE-v0.1 intégré et contrôlé jusqu’au rapport O17 sur C5. Reopen uniquement sur régression provenance/Fact Check, modification du contrat O17/C5 ou nouvelle exigence. Aucun next sous M-022."
+    },
+    {
+      "id": "V-010",
+      "axis": "VECTEUR",
+      "title": "Tester Z.ai desktop via chat.z.ai",
+      "status": "CLOSED",
+      "next": "CLOSED — V010 C002 0.1.6.6 REAL E2E PASS. Réouvrir uniquement sur régression démontrée ou décision explicite de validation UI desktop produit ; Browser Connector interdit."
+    },
+    {
+      "id": "M-023",
+      "axis": "MOTEUR",
+      "title": "Intégrer POST_RESPONSE_AUDITOR_MULTI_MODEL_v0.2 au runtime NEXUS",
+      "status": "HANDOFF",
+      "next": "M023-ZAI-PAYLOAD-RECOVERY-004 — récupération exhaustive du payload brut Z.ai exécutée sans DC : recherche Drive par run/context/fingerprint, lecture du reçu complet, puis contrôle ACTION_RECEIPTS / COMMAND_RESULTS / ACTION_LOG. Résultat : terminal receipt et métadonnées de corrélation présents, mais JSON Result Pack brut absent des artefacts persistés et des journaux. NEXT : exécuter un unique rerun Z.ai AUTH_RUNTIME sur l’Analyse A figée, capturer/persister immédiatement le Result Pack brut, puis synthesizeAudits(ZAI, OPENAI) et contrôler COMPLETE_MULTI_MODEL_AUDIT. Ne pas utiliser le DEVICE U-013 ni un canal local déjà occupé."
+    },
+    {
+      "id": "U-013",
+      "axis": "UTILISATION",
+      "title": "Construire la baseline UX produit partagée Android / Desktop",
+      "status": "ANDROID_FACTCHECK_E2E_PASS",
+      "next": "Fact Check Android E2E désormais PASS jusqu’à O17. INTAKE-0012 (2026-09-20) route vers U-013 l’adaptation des layouts APK mobile à partir de NEXUS_GUEST_UX_V3_1_DIRECT_PREVIEW_COLLAPSED_CLOSEABLE.html, version Drive du 5 septembre 2026, ID 1uOcutK4Pc3D19--ytix7qtADQqsh-H6W. NEXT : intégrer cette référence dans la baseline/adaptation UX Android, avec adapter plateforme séparé et composition manifest/lock avant build, sans modifier moteur/transport ni baselines V-005/V-007. SEC-GUEST-AUTH-RESTORE-001 reste OPEN/BLOCKING_RELEASE avant J6/release."
+    },
+    {
+      "id": "M-024",
+      "axis": "MOTEUR",
+      "title": "Construire EXECUTION POLICY ROUTER — politique d’exécution NEXUS par type de job",
+      "status": "CLOSED",
+      "next": "PASS MOTEUR acquis. Adapter maintenant V-005 Android au snapshot M024, valider V-007, puis adapter/vérifier U-011 Desktop. Aucun déploiement production implicite."
+    }
+  ]
+}

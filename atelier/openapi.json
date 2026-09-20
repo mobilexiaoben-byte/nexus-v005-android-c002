@@ -1,0 +1,93 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "NEXUS Atelier SANDBOX_ONLY",
+    "version": "0.1.0"
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:8765",
+      "description": "Local sandbox; not reachable from ChatGPT as deployed"
+    }
+  ],
+  "paths": {
+    "/v1/commands": {
+      "post": {
+        "operationId": "submitSandboxCommand",
+        "description": "Sandbox state only. No NEXUS production action.",
+        "security": [
+          {
+            "agentBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "request_id",
+                  "action",
+                  "target_id",
+                  "candidate_sha256",
+                  "authority_revision",
+                  "workstream_id"
+                ],
+                "properties": {
+                  "request_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_-]{1,80}$"
+                  },
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "inspect",
+                      "preflight",
+                      "approve",
+                      "release",
+                      "delete"
+                    ]
+                  },
+                  "target_id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_-]{1,100}$"
+                  },
+                  "candidate_sha256": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "authority_revision": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{64}$"
+                  },
+                  "workstream_id": {
+                    "type": "string",
+                    "pattern": "^[A-Z]-[0-9]{3}$"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Sandbox decision; no external effect"
+          },
+          "403": {
+            "description": "Denied or historical receipt"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "agentBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}
