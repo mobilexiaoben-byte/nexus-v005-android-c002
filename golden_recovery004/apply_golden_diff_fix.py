@@ -20,9 +20,9 @@ corr = " if(envelope){ if(envelope.context_pack_id&&parsed.pack_id!==envelope.co
 assert corr in z, 'Z.ai correlation prefilter anchor missing'
 z = z.replace(corr,'',1)
 
-pat = re.compile(r"  async function waitForModelResult\\(bridgeRunId,beforeSnapshot,envelope,timeout=180000\\)\\{.*?\\n  \\}\\n  async function executeJob", re.S)
-m = pat.search(z)
-assert m, 'Z.ai wait anchor missing'
+start = z.index("  async function waitForModelResult(bridgeRunId,beforeSnapshot,envelope,timeout=180000){")
+end = z.index("  async function executeJob", start)
+m_start, m_end = start, end
 golden_wait = """  async function waitForModelResult(bridgeRunId,beforeCount,timeout=160000){
     const deadline=Date.now()+timeout;
     let validText='',validSince=0,validParsed=null,lastCount=beforeCount;
@@ -52,7 +52,7 @@ golden_wait = """  async function waitForModelResult(bridgeRunId,beforeCount,tim
     throw new Error('ZAI_RESPONSE_TIMEOUT_BEFORE_STABLE_COMPLETE_JSON__response_nodes='+String(lastCount));
   }
   async function executeJob"""
-z = z[:m.start()] + golden_wait + z[m.end():]
+z = z[:m_start] + golden_wait + z[m_end:]
 
 old = "      const beforeCount=responseNodes().length; const beforeSnapshot=responseSnapshot(); const prompt=buildPrompt(envelope); setComposerText(composer,prompt); const send=await waitForSendReady(composer);"
 new = "      const beforeCount=responseNodes().length; const prompt=buildPrompt(envelope); setComposerText(composer,prompt); const send=await waitForSendReady(composer);"
