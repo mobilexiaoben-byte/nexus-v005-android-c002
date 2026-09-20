@@ -32,6 +32,9 @@ jobs:
       - name: Run Rego unit tests
         run: opa test governance/opa -v
 
+      - name: Run guard/OPA parity corpus
+        run: python3 governance/opa/parity_corpus.py
+
       - name: Export current preflight input
         run: |
           python3 governance/opa/export_preflight_input.py             --manifest governance/preflight/android-provider-runtime.json             --output governance/opa/current-input.json
