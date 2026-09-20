@@ -1,14 +1,15 @@
-name: V007 GOLDEN RECOVERY 004 GOLDEN DIFF FIX
+name: V007 GOLDEN RECOVERY 007 PROVIDER DEVICE REPAIR
 
 on:
   push:
-    branches: [v007-golden-recovery-004-golden-diff-fix]
+    branches: [v007-golden-recovery-007-provider-device-repair]
     paths:
       - '.github/workflows/v007-golden-recovery-001.yml'
       - 'golden_recovery001/**'
       - 'golden_recovery002/**'
       - 'golden_recovery003/**'
       - 'golden_recovery004/**'
+      - 'golden_recovery007/**'
       - 'governance/**'
   pull_request:
     branches: [main]
@@ -101,6 +102,7 @@ jobs:
           python3 golden_recovery002/apply_device_fixes.py             "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
           python3 golden_recovery003/apply_auth_execution_fix.py             "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
           python3 golden_recovery004/apply_golden_diff_fix.py             "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          python3 golden_recovery007/apply_provider_device_repair.py             "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
 
       - name: Validate Golden recovery invariants
         shell: bash
@@ -174,10 +176,81 @@ jobs:
           grep -F 'Cycle courant uniquement' "$MAIN"
           grep -F 'finishReadableMonitorReport(true' "$MAIN"
 
-          grep -F 'versionCode = 76' "$ROOT/app/build.gradle.kts"
-          grep -F 'versionName = "0.0.76-v007-golden-recovery004-golden-diff-fix"' "$ROOT/app/build.gradle.kts"
+          grep -F 'freshnessRequested' "$MAIN"
+          grep -F 'POPINT_RESEARCH' "$MAIN"
+          grep -F 'normalizedAnswerToken == "NEXUSMODELANSWER"' "$MAIN"
+          grep -F 'session confirmée · test d’exécution requis' "$MAIN"
+          grep -F 'display:none' "$CHAT"
+          grep -F 'display:none' "$GEM"
+          grep -F 'Gemini UI session — exact backend model not exposed by bridge' "$GEM"
+          if [ -f "$ROOT/app/src/main/assets/nexus/claude_provider_c002.js" ]; then
+            node --check "$ROOT/app/src/main/assets/nexus/claude_provider_c002.js"
+            grep -F 'display:none' "$ROOT/app/src/main/assets/nexus/claude_provider_c002.js"
+          fi
+          echo "PROVIDER_ASSETS:"
+          ls -1 "$ROOT/app/src/main/assets/nexus/" | grep -E 'provider.*\.js$|.*provider.*\.js
 
-          printf 'GOLDEN_RECOVERY_004_STATIC_RESULT pass=1 fail=0\n' | tee /tmp/STATIC.txt
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Apply canonical NEXUS launcher branding
+        uses: mobilexiaoben-byte/nexus-v005-android-c002/branding@main
+        with:
+          root: ${{ github.workspace }}/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+
+      - name: Build APK
+        working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+        shell: bash
+        run: gradle :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Verify APK and evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          APK="$ROOT/app/build/outputs/apk/debug/app-debug.apk"
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
+          "$AAPT" dump badging "$APK" | tee /tmp/BADGING.txt
+          grep -F "versionCode='79'" /tmp/BADGING.txt
+          grep -F "application-label:'NEXUS'" /tmp/BADGING.txt
+
+          cp "$APK" NEXUS-V007-GOLDEN-RECOVERY-007-debug.apk
+          sha256sum NEXUS-V007-GOLDEN-RECOVERY-007-debug.apk | tee NEXUS-V007-GOLDEN-RECOVERY-007-debug.apk.sha256
+          cp "$ROOT/RECONCILIATION_LOCK.txt" .
+
+      - name: Upload installable APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: NEXUS-V007-GOLDEN-RECOVERY-007-debug.apk
+          path: NEXUS-V007-GOLDEN-RECOVERY-007-debug.apk
+          archive: false
+          if-no-files-found: error
+
+      - name: Upload evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: NEXUS-V007-GOLDEN-RECOVERY-007-evidence
+          path: |
+            NEXUS-V007-GOLDEN-RECOVERY-007-debug.apk.sha256
+            RECONCILIATION_LOCK.txt
+            /tmp/CORE.txt
+            /tmp/STATIC.txt
+            /tmp/BADGING.txt
+          if-no-files-found: error
+ || true
+          echo "DEEPSEEK_REFERENCES:"
+          grep -Rni 'DeepSeek\|deepseek' "$ROOT/app/src/main" || true
+
+          grep -F 'versionCode = 79' "$ROOT/app/build.gradle.kts"
+          grep -F 'versionName = "0.0.79-v007-golden-recovery007-provider-device-repair"' "$ROOT/app/build.gradle.kts"
+
+          printf 'GOLDEN_RECOVERY_007_STATIC_RESULT pass=1 fail=0\n' | tee /tmp/STATIC.txt
 
       - uses: actions/setup-java@v5
         with:
@@ -209,24 +282,24 @@ jobs:
           grep -F "versionCode='76'" /tmp/BADGING.txt
           grep -F "application-label:'NEXUS'" /tmp/BADGING.txt
 
-          cp "$APK" NEXUS-V007-GOLDEN-RECOVERY-004-debug.apk
-          sha256sum NEXUS-V007-GOLDEN-RECOVERY-004-debug.apk | tee NEXUS-V007-GOLDEN-RECOVERY-004-debug.apk.sha256
+          cp "$APK" NEXUS-V007-GOLDEN-RECOVERY-007-debug.apk
+          sha256sum NEXUS-V007-GOLDEN-RECOVERY-007-debug.apk | tee NEXUS-V007-GOLDEN-RECOVERY-007-debug.apk.sha256
           cp "$ROOT/RECONCILIATION_LOCK.txt" .
 
       - name: Upload installable APK
         uses: actions/upload-artifact@v7
         with:
-          name: NEXUS-V007-GOLDEN-RECOVERY-004-debug.apk
-          path: NEXUS-V007-GOLDEN-RECOVERY-004-debug.apk
+          name: NEXUS-V007-GOLDEN-RECOVERY-007-debug.apk
+          path: NEXUS-V007-GOLDEN-RECOVERY-007-debug.apk
           archive: false
           if-no-files-found: error
 
       - name: Upload evidence
         uses: actions/upload-artifact@v4
         with:
-          name: NEXUS-V007-GOLDEN-RECOVERY-004-evidence
+          name: NEXUS-V007-GOLDEN-RECOVERY-007-evidence
           path: |
-            NEXUS-V007-GOLDEN-RECOVERY-004-debug.apk.sha256
+            NEXUS-V007-GOLDEN-RECOVERY-007-debug.apk.sha256
             RECONCILIATION_LOCK.txt
             /tmp/CORE.txt
             /tmp/STATIC.txt
