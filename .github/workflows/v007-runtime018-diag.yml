@@ -2,22 +2,7 @@ name: V007 RUNTIME018 DIAG PROVIDERS
 on:
   push:
     branches: [v007-m024-u013-provider-runtime-018-provider-regression-fix]
-    paths:
-      - '.github/workflows/v007-runtime018-diag.yml'
-      - 'reconcile001/**'
-      - 'reconcile004/**'
-      - 'reconcile005/**'
-      - 'reconcile006/**'
-      - 'reconcile007/**'
-      - 'reconcile008/**'
-      - 'reconcile009/**'
-      - 'reconcile010/**'
-      - 'reconcile012/**'
-      - 'reconcile013/**'
-      - 'reconcile014/**'
-      - 'reconcile015/**'
-      - 'reconcile016/**'
-      - 'reconcile017/**'
+    paths: ['.github/workflows/v007-runtime018-diag.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -37,14 +22,11 @@ jobs:
           python3 u013ux009/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
           python3 reconcile001/apply_reconcile.py "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
           python3 reconcile017/provider_runtime_017.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
-      - name: Inspect ZAI and Gemini guards
+      - name: Inspect provider status and UI state
         shell: bash
         run: |
-          set -euo pipefail
           ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
-          echo '=== ZAI FULL ==='
-          nl -ba "$ROOT/app/src/main/assets/nexus/zai_provider_c002.js"
-          echo '=== GEMINI FULL ==='
-          nl -ba "$ROOT/app/src/main/assets/nexus/gemini_provider_c002.js"
-          echo '=== MAIN SECURITY/STATUS ==='
-          grep -nEi -C 4 'security|captcha|challenge|verification|connexion au fournisseur|AUTHENTICATED|SESSION_READY|productState' "$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt" || true
+          MAIN="$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt"
+          grep -nEi -C 12 'GEMINI_STATUS|ZAI_STATUS|handleProviderStatus|bridgeStatus|currentHeadline|DESCRIBE_PASS|BLOCKED|ACTIVE_HEADLINE|selectedProviderOrigin|providerConfirmedByUser' "$MAIN" || true
+          echo '=== GEMINI SELECTORS ==='
+          grep -nEi -C 4 'querySelector|findComposer|send|responseNodes|generating' "$ROOT/app/src/main/assets/nexus/gemini_provider_c002.js" || true
