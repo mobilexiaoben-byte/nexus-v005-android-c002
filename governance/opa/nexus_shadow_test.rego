@@ -48,3 +48,20 @@ test_missing_replay_denies if {
     ds := shadow.deny with input as mutated
     count(ds) > 0
 }
+
+
+test_empty_gate_denies if {
+    manifest2 := object.union(valid_input.manifest, {"replay_plan": [{"golden_path_id": "GP-1", "required": true, "gate": ""}]})
+    mutated := object.union(valid_input, {"manifest": manifest2})
+    not shadow.allow with input as mutated
+    ds := shadow.deny with input as mutated
+    "each replay entry requires required=true and a non-empty gate" in ds
+}
+
+test_missing_required_key_denies if {
+    manifest2 := object.remove(valid_input.manifest, {"change_scope"})
+    mutated := object.union(valid_input, {"manifest": manifest2})
+    not shadow.allow with input as mutated
+    ds := shadow.deny with input as mutated
+    count(ds) > 0
+}
