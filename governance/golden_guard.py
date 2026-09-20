@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import argparse, json, pathlib, sys
+import argparse, hashlib, json, pathlib, sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 REGISTRY = ROOT / "governance" / "golden_registry_snapshot.json"
@@ -21,11 +21,24 @@ def main():
         fail(f"missing preflight manifest: {args.manifest}")
     m=json.loads(p.read_text(encoding="utf-8"))
 
-    required=["roadmap_workstream","candidate_classification","affected_golden_paths","required_components","change_scope","replay_plan"]
+    required=["roadmap_workstream","candidate_classification","affected_golden_paths","required_components","change_scope","replay_plan","baseline"]
     missing=[k for k in required if k not in m]
     if missing: fail("missing keys: "+",".join(missing))
     if m["candidate_classification"]!="UNVALIDATED_CANDIDATE":
         fail("candidate_classification must be UNVALIDATED_CANDIDATE")
+    baseline=m["baseline"]
+    if not isinstance(baseline,dict) or not baseline.get("file") or not baseline.get("sha256"):
+        fail("baseline.file and baseline.sha256 are required")
+    bp=(ROOT / baseline["file"]).resolve()
+    if ROOT not in bp.parents or not bp.exists():
+        fail(f"required frozen baseline missing: {baseline.get('file')}")
+    h=hashlib.sha256()
+    with bp.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1024*1024), b""):
+            h.update(chunk)
+    got=h.hexdigest()
+    if got != baseline["sha256"]:
+        fail(f"baseline SHA256 mismatch: expected={baseline['sha256']} actual={got}")
     if not isinstance(m["affected_golden_paths"],list) or not m["affected_golden_paths"]:
         fail("affected_golden_paths must be non-empty")
     if not isinstance(m["change_scope"],list) or not m["change_scope"]:
