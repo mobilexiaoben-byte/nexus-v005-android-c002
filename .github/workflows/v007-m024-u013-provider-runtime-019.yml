@@ -159,7 +159,7 @@ jobs:
           AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
           "$AAPT" dump badging "$APK" | tee /tmp/BADGING.txt
           grep -F "package: name='nexus.android.v007.m024.u013.providercontract006'" /tmp/BADGING.txt
-          grep -F "versionCode='71'" /tmp/BADGING.txt
+          grep -F "versionCode='72'" /tmp/BADGING.txt
           grep -F "application-label:'NEXUS'" /tmp/BADGING.txt
           unzip -l "$APK" | grep -F 'assets/nexus/nexus_existing_guest_monitor_patch.js'
           cp "$APK" NEXUS-V007-M024-U013-PROVIDER-RUNTIME-019-WEB-MONITOR-FIX-debug.apk
