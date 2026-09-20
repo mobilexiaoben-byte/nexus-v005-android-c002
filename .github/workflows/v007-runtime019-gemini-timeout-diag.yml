@@ -1,0 +1,34 @@
+name: V007 RUNTIME019 GEMINI TIMEOUT DIAG
+on:
+  push:
+    branches: [v007-m024-u013-provider-runtime-018-provider-regression-fix]
+    paths: ['.github/workflows/v007-runtime019-gemini-timeout-diag.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: Generate Runtime018 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf base work
+          mkdir -p base work
+          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d base
+          cp -a base/V005_ANDROID_CHROMIUM_WEBVIEW_C002 work/
+          python3 u013ux009/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          python3 reconcile001/apply_reconcile.py "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          python3 reconcile018/provider_runtime_018.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+      - name: Inspect execution timeout and Gemini capture
+        shell: bash
+        run: |
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          MAIN="$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt"
+          GEM="$ROOT/app/src/main/assets/nexus/gemini_provider_c002.js"
+          echo '=== EXECUTION CONTROLLER ==='
+          grep -nEi -C 18 'startExecutionProof|PROVIDER_RESULT|PROVIDER_PROGRESS|TIMEOUT|terminalReceived|handler.postDelayed|proofStopped|bridge_run_id|poll' "$MAIN" || true
+          echo '=== GEMINI CAPTURE ==='
+          nl -ba "$GEM" | sed -n '130,330p'
