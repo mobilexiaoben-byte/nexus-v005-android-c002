@@ -1,13 +1,16 @@
-name: V007 GOLDEN RECOVERY 002 DEVICE FIXES
+name: V007 GOLDEN RECOVERY 003 AUTH EXEC FIX
 
 on:
   push:
-    branches: [v007-golden-recovery-002-device-fixes]
+    branches: [v007-golden-recovery-003-auth-exec-fix]
     paths:
       - '.github/workflows/v007-golden-recovery-001.yml'
       - 'golden_recovery001/**'
       - 'golden_recovery002/**'
+      - 'golden_recovery003/**'
       - 'governance/**'
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -95,10 +98,7 @@ jobs:
 
           python3 golden_recovery001/apply_capture_repair.py             "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
           python3 golden_recovery002/apply_device_fixes.py             "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
-
-      - name: Diagnose auth/execution state
-        shell: bash
-        run: python3 golden_recovery003/diagnose_auth_execution.py "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          python3 golden_recovery003/apply_auth_execution_fix.py             "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
 
       - name: Validate Golden recovery invariants
         shell: bash
@@ -143,6 +143,20 @@ jobs:
           grep -F 'changed_response_count' "$ZAI"
           grep -F 'parseCompleteResultCandidate(txt,envelope)' "$ZAI"
 
+          # Manual login/confirmation remains authoritative; stale auth state cannot block after explicit confirmation.
+          grep -F 'private val manualProviderConfirmationMode = true' "$MAIN"
+          grep -F 'DESCRIBE_OVERRIDE=MANUAL_CONFIRMATION' "$MAIN"
+          grep -F 'DESCRIBE PASS — $provider ready (manual confirmation)' "$MAIN"
+
+          # Execution identity is unique per Analyse cycle while duplicate-receipt guard remains intact.
+          grep -F 'activeExecutionId = "U013-ANDROID-" + System.currentTimeMillis()' "$MAIN"
+          grep -F 'requestId = activeExecutionId' "$MAIN"
+          grep -F 'const val LEGACY_JOB_ID_REFERENCE' "$MAIN"
+          ! grep -F 'const val JOB_ID =' "$MAIN"
+          grep -F 'ackPassed = false' "$MAIN"
+          grep -F 'proofJob = null' "$MAIN"
+          grep -F 'ANDROID_DUPLICATE_EXECUTION_ID' "$TC"
+
           # M024 Web policy and readable terminal report remain present.
           grep -F 'JobType.OPEN_ANALYSIS -> ResearchPolicy.OPTIONAL' "$TC"
           grep -F 'JobType.CLOSED_AUDIT -> ResearchPolicy.FORBIDDEN' "$TC"
@@ -152,10 +166,10 @@ jobs:
           grep -F 'Cycle courant uniquement' "$MAIN"
           grep -F 'finishReadableMonitorReport(true' "$MAIN"
 
-          grep -F 'versionCode = 74' "$ROOT/app/build.gradle.kts"
-          grep -F 'versionName = "0.0.74-v007-golden-recovery002-device-fixes"' "$ROOT/app/build.gradle.kts"
+          grep -F 'versionCode = 75' "$ROOT/app/build.gradle.kts"
+          grep -F 'versionName = "0.0.75-v007-golden-recovery003-auth-exec-fix"' "$ROOT/app/build.gradle.kts"
 
-          printf 'GOLDEN_RECOVERY_002_STATIC_RESULT pass=1 fail=0\n' | tee /tmp/STATIC.txt
+          printf 'GOLDEN_RECOVERY_003_STATIC_RESULT pass=1 fail=0\n' | tee /tmp/STATIC.txt
 
       - uses: actions/setup-java@v5
         with:
@@ -184,27 +198,27 @@ jobs:
           APK="$ROOT/app/build/outputs/apk/debug/app-debug.apk"
           AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
           "$AAPT" dump badging "$APK" | tee /tmp/BADGING.txt
-          grep -F "versionCode='74'" /tmp/BADGING.txt
+          grep -F "versionCode='75'" /tmp/BADGING.txt
           grep -F "application-label:'NEXUS'" /tmp/BADGING.txt
 
-          cp "$APK" NEXUS-V007-GOLDEN-RECOVERY-002-debug.apk
-          sha256sum NEXUS-V007-GOLDEN-RECOVERY-002-debug.apk | tee NEXUS-V007-GOLDEN-RECOVERY-002-debug.apk.sha256
+          cp "$APK" NEXUS-V007-GOLDEN-RECOVERY-003-debug.apk
+          sha256sum NEXUS-V007-GOLDEN-RECOVERY-003-debug.apk | tee NEXUS-V007-GOLDEN-RECOVERY-003-debug.apk.sha256
           cp "$ROOT/RECONCILIATION_LOCK.txt" .
 
       - name: Upload installable APK
         uses: actions/upload-artifact@v7
         with:
-          name: NEXUS-V007-GOLDEN-RECOVERY-002-debug.apk
-          path: NEXUS-V007-GOLDEN-RECOVERY-002-debug.apk
+          name: NEXUS-V007-GOLDEN-RECOVERY-003-debug.apk
+          path: NEXUS-V007-GOLDEN-RECOVERY-003-debug.apk
           archive: false
           if-no-files-found: error
 
       - name: Upload evidence
         uses: actions/upload-artifact@v4
         with:
-          name: NEXUS-V007-GOLDEN-RECOVERY-002-evidence
+          name: NEXUS-V007-GOLDEN-RECOVERY-003-evidence
           path: |
-            NEXUS-V007-GOLDEN-RECOVERY-002-debug.apk.sha256
+            NEXUS-V007-GOLDEN-RECOVERY-003-debug.apk.sha256
             RECONCILIATION_LOCK.txt
             /tmp/CORE.txt
             /tmp/STATIC.txt
