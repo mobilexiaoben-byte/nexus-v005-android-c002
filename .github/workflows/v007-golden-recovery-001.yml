@@ -10,6 +10,7 @@ on:
       - 'golden_recovery003/**'
       - 'golden_recovery004/**'
       - 'golden_recovery007/**'
+      - 'diagnostics/v007_provider_watchdog_patch.py'
       - 'governance/**'
   pull_request:
     branches: [main]
@@ -103,6 +104,7 @@ jobs:
           python3 golden_recovery003/apply_auth_execution_fix.py             "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
           python3 golden_recovery004/apply_golden_diff_fix.py             "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
           python3 golden_recovery007/apply_provider_device_repair.py             "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          python3 diagnostics/v007_provider_watchdog_patch.py             "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
 
       - name: Validate Golden recovery invariants
         shell: bash
@@ -182,11 +184,16 @@ jobs:
           grep -F 'display:none' "$CHAT"
           grep -F 'display:none' "$GEM"
           grep -F 'Gemini UI session — exact backend model not exposed by bridge' "$GEM"
+          grep -F 'ANDROID_PROVIDER_INACTIVITY_TIMEOUT' "$MAIN"
+          grep -F 'ANDROID_TERMINAL_HARD_TIMEOUT' "$MAIN"
+          ! grep -F 'ANDROID_TERMINAL_TIMEOUT' "$MAIN"
+          grep -F 'CHATGPT_UI_RESPONSE_ACTIVITY' "$CHAT"
+          grep -F 'GEMINI_UI_RESPONSE_ACTIVITY' "$GEM"
 
-          grep -F 'versionCode = 79' "$ROOT/app/build.gradle.kts"
-          grep -F 'versionName = "0.0.79-v007-golden-recovery007-provider-device-repair"' "$ROOT/app/build.gradle.kts"
+          grep -F 'versionCode = 80' "$ROOT/app/build.gradle.kts"
+          grep -F 'versionName = "0.0.80-v007-provider-watchdog-diagnostic"' "$ROOT/app/build.gradle.kts"
 
-          printf 'GOLDEN_RECOVERY_007_STATIC_RESULT pass=1 fail=0\n' | tee /tmp/STATIC.txt
+          printf 'V007_PROVIDER_WATCHDOG_DIAGNOSTIC_STATIC_RESULT pass=1 fail=0\n' | tee /tmp/STATIC.txt
 
       - uses: actions/setup-java@v5
         with:
@@ -220,27 +227,27 @@ jobs:
           APK="$ROOT/app/build/outputs/apk/debug/app-debug.apk"
           AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
           "$AAPT" dump badging "$APK" | tee /tmp/BADGING.txt
-          grep -F "versionCode='79'" /tmp/BADGING.txt
+          grep -F "versionCode='80'" /tmp/BADGING.txt
           grep -F "application-label:'NEXUS'" /tmp/BADGING.txt
 
-          cp "$APK" NEXUS-V007-GOLDEN-RECOVERY-007-debug.apk
-          sha256sum NEXUS-V007-GOLDEN-RECOVERY-007-debug.apk | tee NEXUS-V007-GOLDEN-RECOVERY-007-debug.apk.sha256
+          cp "$APK" NEXUS-V007-PROVIDER-WATCHDOG-DIAGNOSTIC-debug.apk
+          sha256sum NEXUS-V007-PROVIDER-WATCHDOG-DIAGNOSTIC-debug.apk | tee NEXUS-V007-PROVIDER-WATCHDOG-DIAGNOSTIC-debug.apk.sha256
           cp "$ROOT/RECONCILIATION_LOCK.txt" .
 
       - name: Upload installable APK
         uses: actions/upload-artifact@v7
         with:
-          name: NEXUS-V007-GOLDEN-RECOVERY-007-debug.apk
-          path: NEXUS-V007-GOLDEN-RECOVERY-007-debug.apk
+          name: NEXUS-V007-PROVIDER-WATCHDOG-DIAGNOSTIC-debug.apk
+          path: NEXUS-V007-PROVIDER-WATCHDOG-DIAGNOSTIC-debug.apk
           archive: false
           if-no-files-found: error
 
       - name: Upload evidence
         uses: actions/upload-artifact@v4
         with:
-          name: NEXUS-V007-GOLDEN-RECOVERY-007-evidence
+          name: NEXUS-V007-PROVIDER-WATCHDOG-DIAGNOSTIC-evidence
           path: |
-            NEXUS-V007-GOLDEN-RECOVERY-007-debug.apk.sha256
+            NEXUS-V007-PROVIDER-WATCHDOG-DIAGNOSTIC-debug.apk.sha256
             RECONCILIATION_LOCK.txt
             /tmp/CORE.txt
             /tmp/STATIC.txt
