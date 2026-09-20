@@ -96,6 +96,10 @@ jobs:
           python3 golden_recovery001/apply_capture_repair.py             "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
           python3 golden_recovery002/apply_device_fixes.py             "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
 
+      - name: Diagnose auth/execution state
+        shell: bash
+        run: python3 golden_recovery003/diagnose_auth_execution.py "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+
       - name: Validate Golden recovery invariants
         shell: bash
         run: |
