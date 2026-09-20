@@ -114,8 +114,8 @@ old_validation = """        val answer = resultPack.optString("answer").trim()
 """
 new_validation = """        val answer = resultPack.optString("answer").trim()
         if (answer.isBlank()) return "ANDROID_RESULT_ANSWER_EMPTY"
-        val normalizedAnswer = answer.replace(Regex("[*_\\x60\\\\s]"), "")
-        val normalizedPlaceholder = ANSWER_PLACEHOLDER.replace(Regex("[*_\\x60\\\\s]"), "")
+        val normalizedAnswer = answer.replace(Regex("[*_`\\\\s]"), "")
+        val normalizedPlaceholder = ANSWER_PLACEHOLDER.replace(Regex("[*_`\\\\s]"), "")
         if (normalizedAnswer.equals(normalizedPlaceholder, ignoreCase = true)) return "ANDROID_RESULT_ANSWER_PLACEHOLDER"
 """
 assert old_validation in m, "answer validation anchor missing"
