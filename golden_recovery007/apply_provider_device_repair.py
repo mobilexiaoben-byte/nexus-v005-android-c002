@@ -154,7 +154,7 @@ if old in m:
             listOf("recherche web", "recherche internet", "recherche en ligne", "web search", "search the web", "internet research")
                 .any { normalizedResearchIntent.contains(it) }
         val freshnessRequested =
-            Regex("""\\b(aujourd['’]?hui|hier|derniers?\\s+(?:[0-9]+\\s+)?(?:jours?|heures?|semaines?)|derni[eè]res?\\s+(?:[0-9]+\\s+)?(?:jours?|heures?|semaines?)|r[eé]cent(?:e|es|s)?|latest|today|yesterday|last\\s+[0-9]+\\s+(?:days?|hours?|weeks?))\\b""")
+            Regex("\\b(aujourd['’]?hui|hier|derniers?\\s+(?:[0-9]+\\s+)?(?:jours?|heures?|semaines?)|derni[eè]res?\\s+(?:[0-9]+\\s+)?(?:jours?|heures?|semaines?)|r[eé]cent(?:e|es|s)?|latest|today|yesterday|last\\s+[0-9]+\\s+(?:days?|hours?|weeks?))\\b")
                 .containsMatchIn(normalizedResearchIntent)
         val jobType = if (explicitWebResearchRequested || freshnessRequested)
             nexus.android.c002.core.JobType.POPINT_RESEARCH
