@@ -2,28 +2,33 @@
 from pathlib import Path
 import re, sys
 root=Path(sys.argv[1])
-main=root/"app/src/main/java/nexus/android/c002/MainActivity.kt"
-text=main.read_text()
+files=list(root.rglob("*.kt"))+list(root.rglob("*.js"))
 needles=[
  "ANDROID_DUPLICATE_EXECUTION_ID",
- "executionId",
- "execution_id",
- "AUTH: UNKNOWN",
- "AUTH_UNKNOWN",
- "Connexion à",
- "authenticated",
- "connected",
- "providerState",
- "authState",
- "startExecutionProof",
+ "DUPLICATE_EXECUTION",
+ "JOB_ID",
+ "manualProviderConfirmationMode",
+ "providerConfirmedByUser",
+ "productRunRequested",
+ "executionStarted",
+ "proofStopped",
+ "buildJob(",
+ "requestId",
+ "seenExecution",
+ "seenRequest",
 ]
-seen=set()
-for needle in needles:
-    for m in re.finditer(re.escape(needle), text, re.I):
-        a=max(0,m.start()-1800); b=min(len(text),m.end()+3200)
-        key=(a,b)
-        if key in seen: continue
-        seen.add(key)
-        print("\n===== MATCH",needle,"AT",m.start(),"=====\n")
+for path in files:
+    text=path.read_text(errors="ignore")
+    hits=[]
+    for needle in needles:
+        for m in re.finditer(re.escape(needle), text, re.I):
+            hits.append((m.start(),needle))
+    if not hits: continue
+    print("\n######## FILE",path.relative_to(root),"########")
+    printed=[]
+    for pos,needle in sorted(hits)[:60]:
+        a=max(0,pos-1400); b=min(len(text),pos+2600)
+        if any(abs(a-x)<600 for x in printed): continue
+        printed.append(a)
+        print("\n===== MATCH",needle,"AT",pos,"=====\n")
         print(text[a:b])
-print("\n===== END DIAGNOSTIC =====")
