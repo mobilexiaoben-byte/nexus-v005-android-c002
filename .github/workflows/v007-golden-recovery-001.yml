@@ -1,11 +1,12 @@
-name: V007 GOLDEN RECOVERY 001
+name: V007 GOLDEN RECOVERY 002 DEVICE FIXES
 
 on:
   push:
-    branches: [v007-golden-recovery-001]
+    branches: [v007-golden-recovery-002-device-fixes]
     paths:
       - '.github/workflows/v007-golden-recovery-001.yml'
       - 'golden_recovery001/**'
+      - 'golden_recovery002/**'
       - 'governance/**'
   workflow_dispatch:
 
@@ -22,9 +23,23 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install pinned OPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSLo opa https://openpolicyagent.org/downloads/v1.20.2/opa_linux_amd64_static
+          echo "69da5179ee403d10fa11bab6cfb4ffb0d23dba5f9b682fa977db772a1da5670f  opa" | sha256sum -c -
+          chmod +x opa
+          sudo mv opa /usr/local/bin/opa
+          opa version
+
       - name: Mandatory NEXUS Golden preflight
         shell: bash
         run: python3 governance/golden_guard.py --manifest governance/preflight/android-provider-runtime.json
+
+      - name: Mandatory NEXUS OPA dual enforcement
+        shell: bash
+        run: python3 governance/opa/dual_guard.py --manifest governance/preflight/android-provider-runtime.json
 
       - name: Checkout proven Runtime019 web-monitor lineage as source material
         uses: actions/checkout@v6
@@ -79,6 +94,7 @@ jobs:
           cp golden_gemini/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/src/main/assets/nexus/gemini_provider_c002.js work/V005_ANDROID_CHROMIUM_WEBVIEW_C002/app/src/main/assets/nexus/gemini_provider_c002.js
 
           python3 golden_recovery001/apply_capture_repair.py             "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          python3 golden_recovery002/apply_device_fixes.py             "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
 
       - name: Validate Golden recovery invariants
         shell: bash
@@ -87,6 +103,7 @@ jobs:
           ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
           CHAT="$ROOT/app/src/main/assets/nexus/chatgpt_provider_c002.js"
           GEM="$ROOT/app/src/main/assets/nexus/gemini_provider_c002.js"
+          ZAI="$ROOT/app/src/main/assets/nexus/zai_provider_c002.js"
           MAIN="$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt"
           TC="$ROOT/app/src/main/java/nexus/android/c002/core/TransportContract.kt"
 
@@ -95,6 +112,7 @@ jobs:
 
           node --check "$CHAT"
           node --check "$GEM"
+          node --check "$ZAI"
 
           # Golden capture behavior preserved, only count-only assumption removed.
           grep -F 'function assistantSnapshot()' "$CHAT"
@@ -109,7 +127,17 @@ jobs:
           grep -F 'waitForModelResult(bridgeRunId,beforeSnapshot,envelope)' "$GEM"
           grep -F 'GEMINI_PROMPT_SUBMISSION_NOT_ESTABLISHED' "$GEM"
           grep -F 'changed_response_count' "$GEM"
+          grep -F 'submittedUserPromptObserved(envelope)' "$GEM"
+          grep -F 'timeout=20000' "$GEM"
           ! grep -F 'beforeCount=modelResponseNodes().length' "$GEM"
+
+          # Z.ai send/submission path preserved; result capture upgraded only.
+          grep -F 'ZAI_UI_PROMPT_SENT_CONFIRMED' "$ZAI"
+          grep -F 'waitForSubmissionEstablished(envelope,beforeCount)' "$ZAI"
+          grep -F 'function responseSnapshot()' "$ZAI"
+          grep -F 'responseCandidateNodes()' "$ZAI"
+          grep -F 'changed_response_count' "$ZAI"
+          grep -F 'parseCompleteResultCandidate(txt,envelope)' "$ZAI"
 
           # M024 Web policy and readable terminal report remain present.
           grep -F 'JobType.OPEN_ANALYSIS -> ResearchPolicy.OPTIONAL' "$TC"
@@ -120,10 +148,10 @@ jobs:
           grep -F 'Cycle courant uniquement' "$MAIN"
           grep -F 'finishReadableMonitorReport(true' "$MAIN"
 
-          grep -F 'versionCode = 73' "$ROOT/app/build.gradle.kts"
-          grep -F 'versionName = "0.0.73-v007-golden-recovery001"' "$ROOT/app/build.gradle.kts"
+          grep -F 'versionCode = 74' "$ROOT/app/build.gradle.kts"
+          grep -F 'versionName = "0.0.74-v007-golden-recovery002-device-fixes"' "$ROOT/app/build.gradle.kts"
 
-          printf 'GOLDEN_RECOVERY_001_STATIC_RESULT pass=1 fail=0\n' | tee /tmp/STATIC.txt
+          printf 'GOLDEN_RECOVERY_002_STATIC_RESULT pass=1 fail=0\n' | tee /tmp/STATIC.txt
 
       - uses: actions/setup-java@v5
         with:
@@ -152,27 +180,27 @@ jobs:
           APK="$ROOT/app/build/outputs/apk/debug/app-debug.apk"
           AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
           "$AAPT" dump badging "$APK" | tee /tmp/BADGING.txt
-          grep -F "versionCode='73'" /tmp/BADGING.txt
+          grep -F "versionCode='74'" /tmp/BADGING.txt
           grep -F "application-label:'NEXUS'" /tmp/BADGING.txt
 
-          cp "$APK" NEXUS-V007-GOLDEN-RECOVERY-001-debug.apk
-          sha256sum NEXUS-V007-GOLDEN-RECOVERY-001-debug.apk | tee NEXUS-V007-GOLDEN-RECOVERY-001-debug.apk.sha256
+          cp "$APK" NEXUS-V007-GOLDEN-RECOVERY-002-debug.apk
+          sha256sum NEXUS-V007-GOLDEN-RECOVERY-002-debug.apk | tee NEXUS-V007-GOLDEN-RECOVERY-002-debug.apk.sha256
           cp "$ROOT/RECONCILIATION_LOCK.txt" .
 
       - name: Upload installable APK
         uses: actions/upload-artifact@v7
         with:
-          name: NEXUS-V007-GOLDEN-RECOVERY-001-debug.apk
-          path: NEXUS-V007-GOLDEN-RECOVERY-001-debug.apk
+          name: NEXUS-V007-GOLDEN-RECOVERY-002-debug.apk
+          path: NEXUS-V007-GOLDEN-RECOVERY-002-debug.apk
           archive: false
           if-no-files-found: error
 
       - name: Upload evidence
         uses: actions/upload-artifact@v4
         with:
-          name: NEXUS-V007-GOLDEN-RECOVERY-001-evidence
+          name: NEXUS-V007-GOLDEN-RECOVERY-002-evidence
           path: |
-            NEXUS-V007-GOLDEN-RECOVERY-001-debug.apk.sha256
+            NEXUS-V007-GOLDEN-RECOVERY-002-debug.apk.sha256
             RECONCILIATION_LOCK.txt
             /tmp/CORE.txt
             /tmp/STATIC.txt
