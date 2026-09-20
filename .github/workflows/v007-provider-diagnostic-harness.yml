@@ -63,6 +63,7 @@ jobs:
           python3 golden_recovery003/apply_auth_execution_fix.py "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
           python3 golden_recovery004/apply_golden_diff_fix.py "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
           python3 golden_recovery007/apply_provider_device_repair.py "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          python3 diagnostics/v007_provider_watchdog_patch.py "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
 
       - name: Extract timeout and lifecycle evidence
         shell: bash
@@ -94,6 +95,13 @@ jobs:
           out={"native":native,"providers":providers}
           Path("diag/timeout_lifecycle.json").write_text(json.dumps(out,indent=2,ensure_ascii=False))
           print(json.dumps(out,indent=2,ensure_ascii=False))
+          # Machine assertions for the corrected timeout lifecycle.
+          assert not any("ANDROID_TERMINAL_TIMEOUT" in x["text"] for x in native)
+          assert any("scheduleTerminalWatchdog" in x["text"] or "ANDROID_PROVIDER_INACTIVITY_TIMEOUT" in x["text"] for x in native)
+          assert "providerResultBudgetMs(envelope)" in (root/"app/src/main/assets/nexus/chatgpt_provider_c002.js").read_text()
+          assert "CHATGPT_UI_RESPONSE_ACTIVITY" in (root/"app/src/main/assets/nexus/chatgpt_provider_c002.js").read_text()
+          assert "providerResultBudgetMs(envelope)" in (root/"app/src/main/assets/nexus/gemini_provider_c002.js").read_text()
+          assert "GEMINI_UI_RESPONSE_ACTIVITY" in (root/"app/src/main/assets/nexus/gemini_provider_c002.js").read_text()
           PY
           cp "$MAIN" diag/MainActivity.kt
           cp "$ROOT"/app/src/main/assets/nexus/*provider*.js diag/
