@@ -13,12 +13,22 @@ exec((repo / "reconcile018" / "provider_runtime_018.py").read_text(), {
 gem_path = root / "app/src/main/assets/nexus/gemini_provider_c002.js"
 s = gem_path.read_text()
 
-old = r'''  function modelResponseNodes(){
-.*?
+old = """  function modelResponseNodes(){
+    const primary=[...document.querySelectorAll('model-response')].filter(visible);
+    if(primary.length) return primary;
+    const selectors=['[data-test-id*="model-response" i]','.model-response-text','message-content','.response-content'];
+    const seen=new Set(),out=[];
+    for(const s of selectors){
+      for(const el of document.querySelectorAll(s)){
+        if(!visible(el)||seen.has(el)) continue;
+        seen.add(el); out.push(el);
+      }
+    }
+    return out;
   }
 
-  function generating(){'''
-new = '''  function modelResponseNodes(){
+  function generating(){"""
+new = """  function modelResponseNodes(){
     const selectors=[
       'model-response',
       '[data-message-author-role="model"]',
@@ -56,9 +66,9 @@ new = '''  function modelResponseNodes(){
     });
   }
 
-  function generating(){'''
-s, n = re.subn(old, new, s, count=1, flags=re.S)
-assert n == 1, "modelResponseNodes block anchor mismatch"
+  function generating(){"""
+assert s.count(old)==1, "modelResponseNodes exact anchor mismatch"
+s=s.replace(old,new,1)
 
 s = s.replace(
     "  function parseCompleteResultCandidate(text){",
