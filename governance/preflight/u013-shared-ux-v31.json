@@ -1,0 +1,29 @@
+{
+  "roadmap_workstream":"U-013",
+  "candidate_classification":"UNVALIDATED_CANDIDATE",
+  "affected_golden_paths":[
+    "GP-U002-GUEST-ANDROID-MONITOR-SMOKE",
+    "GP-U004-ANDROID-UX-SHELL004",
+    "GP-U007-ANDROID-USER-JOURNEY"
+  ],
+  "required_components":[
+    "COMP-ANDROID-U002-MONITOR-0030",
+    "COMP-ANDROID-U004-UX-SHELL004",
+    "COMP-ANDROID-V005-OPENAI-UIRETRY1"
+  ],
+  "change_scope":[
+    "shared Android UX presentation",
+    "mobile drawer/backdrop/navigation",
+    "platform context/settings panels",
+    "Android system-back adapter"
+  ],
+  "replay_plan":[
+    {"golden_path_id":"GP-U002-GUEST-ANDROID-MONITOR-SMOKE","required":true,"gate":"DEVICE monitor smoke"},
+    {"golden_path_id":"GP-U004-ANDROID-UX-SHELL004","required":true,"gate":"DEVICE shell/menu replay"},
+    {"golden_path_id":"GP-U007-ANDROID-USER-JOURNEY","required":true,"gate":"DEVICE user-journey non-regression"}
+  ],
+  "baseline":{
+    "file":"V005_ANDROID_CHROMIUM_WEBVIEW_C003.zip",
+    "sha256":"69f88ce310515d94c7225a080d615c64c7bc3dac786cc2a9d590901599fa6670"
+  }
+}
