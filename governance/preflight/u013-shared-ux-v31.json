@@ -1,0 +1,38 @@
+{
+  "roadmap_workstream": "U-013",
+  "candidate_classification": "UNVALIDATED_CANDIDATE",
+  "design_baseline_id": "BASELINE_UX_SHARED_001",
+  "design_reference_drive_id": "1uOcutK4Pc3D19--ytix7qtADQqsh-H6W",
+  "platform_adapter_id": "U013_ANDROID_PLATFORM_ADAPTER_010",
+  "affected_golden_paths": [
+    "GP-U002-GUEST-ANDROID-MONITOR-SMOKE",
+    "GP-U004-ANDROID-UX-SHELL004",
+    "GP-U007-ANDROID-USER-JOURNEY"
+  ],
+  "required_components": [
+    "COMP-ANDROID-V005-OPENAI-UIRETRY1",
+    "COMP-ANDROID-U002-MONITOR-0030",
+    "COMP-ANDROID-U004-UX-SHELL004"
+  ],
+  "change_scope": [
+    "shared Android UX presentation",
+    "platform navigation adapter",
+    "mobile drawer/backdrop/context/settings"
+  ],
+  "replay_plan": [
+    {"golden_path_id":"GP-U002-GUEST-ANDROID-MONITOR-SMOKE","required":true,"gate":"DEVICE monitor smoke"},
+    {"golden_path_id":"GP-U004-ANDROID-UX-SHELL004","required":true,"gate":"DEVICE shell/menu replay"},
+    {"golden_path_id":"GP-U007-ANDROID-USER-JOURNEY","required":true,"gate":"DEVICE user-journey non-regression"}
+  ],
+  "baseline": {
+    "file": "V005_ANDROID_CHROMIUM_WEBVIEW_C003.zip",
+    "sha256": "69f88ce310515d94c7225a080d615c64c7bc3dac786cc2a9d590901599fa6670"
+  },
+  "non_modified_originals": [
+    "M-024 execution policy",
+    "provider adapters",
+    "Fact Check O24 runtime",
+    "monitoring logic",
+    "Result Pack contract"
+  ]
+}
