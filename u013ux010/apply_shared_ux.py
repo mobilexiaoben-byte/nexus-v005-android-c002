@@ -36,15 +36,6 @@ install=content_anchor+"""        u013PlatformAdapter = AndroidPlatformAdapter(t
             }
         }
         u013PlatformAdapter.install()
-        onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                if (!u013PlatformAdapter.handleSystemBack()) {
-                    isEnabled = false
-                    onBackPressedDispatcher.onBackPressed()
-                    isEnabled = true
-                }
-            }
-        })
 """
 s=s.replace(content_anchor,install,1)
 main.write_text(s)
