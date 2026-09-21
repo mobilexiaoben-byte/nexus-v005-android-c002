@@ -110,7 +110,7 @@ jobs:
           grep -F 'NEXUS Context' "$ADAPTER"
           grep -F 'Paramètres' "$ADAPTER"
           grep -F 'u013PlatformAdapter.install()' "$MAIN"
-          grep -F 'handleSystemBack()' "$MAIN"
+          grep -F 'fun handleSystemBack():Boolean' "$ADAPTER"
 
           grep -F 'RUNTIME_BASELINE=V007_GOLDEN_RECOVERY_001' "$LOCK"
           grep -F 'M024=UNCHANGED' "$LOCK"
