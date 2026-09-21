@@ -1,0 +1,120 @@
+# NEXUS_GOVERNANCE_ENFORCED_C003
+name: U013 SHARED UX V31 BASELINE 010
+
+on:
+  push:
+    branches: [u013-shared-ux-v31-baseline-010]
+    paths:
+      - '.github/workflows/u013-shared-ux-v31-baseline-010.yml'
+      - 'u013ux010/**'
+      - 'governance/preflight/u013-shared-ux-v31.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: NEXUS mandatory Golden preflight
+        shell: bash
+        run: python3 governance/golden_guard.py --manifest governance/preflight/u013-shared-ux-v31.json
+
+      - name: Generate U013 shared UX candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '69f88ce310515d94c7225a080d615c64c7bc3dac786cc2a9d590901599fa6670  V005_ANDROID_CHROMIUM_WEBVIEW_C003.zip' | sha256sum -c -
+          rm -rf base work
+          mkdir -p base work
+          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C003.zip -d base
+          ROOT="$(find base -maxdepth 1 -mindepth 1 -type d | head -1)"
+          test -n "$ROOT"
+          cp -a "$ROOT" work/NEXUS_ANDROID
+          python3 u013ux009/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/NEXUS_ANDROID"
+          python3 reconcile001/apply_reconcile.py "$GITHUB_WORKSPACE/work/NEXUS_ANDROID"
+          python3 u013ux010/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/NEXUS_ANDROID"
+
+      - name: Validate composition and UX isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE/work/NEXUS_ANDROID"
+          MAIN="$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt"
+          ADAPTER="$ROOT/app/src/main/java/nexus/android/c002/AndroidPlatformAdapter.kt"
+          LOCK="$ROOT/U013_COMPOSITION_LOCK.txt"
+          test -f "$ADAPTER"
+          grep -F 'class AndroidPlatformAdapter' "$ADAPTER"
+          grep -F 'Mes travaux' "$ADAPTER"
+          grep -F 'Fact Check' "$ADAPTER"
+          grep -F 'Cartes' "$ADAPTER"
+          grep -F 'Sujets persistants' "$ADAPTER"
+          grep -F 'Analyses locales' "$ADAPTER"
+          grep -F 'Archives' "$ADAPTER"
+          grep -F 'NEXUS Context' "$ADAPTER"
+          grep -F 'Paramètres' "$ADAPTER"
+          grep -F 'platformAdapter.install()' "$MAIN"
+          grep -F 'M024=UNCHANGED' "$LOCK"
+          grep -F 'FACTCHECK_O24=UNCHANGED' "$LOCK"
+          grep -F 'PROVIDER_ADAPTERS=UNCHANGED' "$LOCK"
+          grep -F 'MONITORING=UNCHANGED' "$LOCK"
+          grep -F 'RESULT_PACK=UNCHANGED' "$LOCK"
+          "$ROOT/run_core_tests.sh" | tee /tmp/CORE.txt
+          grep -F 'fail=0' /tmp/CORE.txt
+          printf 'U013_SHARED_UX_V31_STATIC_RESULT pass=15 fail=0\n' | tee /tmp/U013_STATIC.txt
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Apply NEXUS launcher branding
+        uses: mobilexiaoben-byte/nexus-v005-android-c002/branding@main
+        with:
+          root: ${{ github.workspace }}/work/NEXUS_ANDROID
+
+      - name: Build APK
+        working-directory: work/NEXUS_ANDROID
+        shell: bash
+        run: gradle :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Verify candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE/work/NEXUS_ANDROID"
+          APK="$ROOT/app/build/outputs/apk/debug/app-debug.apk"
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
+          "$AAPT" dump badging "$APK" | tee /tmp/BADGING.txt
+          grep -F "versionCode='73'" /tmp/BADGING.txt
+          grep -F "application-label:'NEXUS'" /tmp/BADGING.txt
+          cp "$APK" NEXUS-U013-SHARED-UX-V31-BASELINE-010-debug.apk
+          sha256sum NEXUS-U013-SHARED-UX-V31-BASELINE-010-debug.apk > NEXUS-U013-SHARED-UX-V31-BASELINE-010-debug.apk.sha256
+          cp "$ROOT/U013_COMPOSITION_LOCK.txt" .
+
+      - name: Upload candidate
+        uses: actions/upload-artifact@v7
+        with:
+          path: NEXUS-U013-SHARED-UX-V31-BASELINE-010-debug.apk
+          archive: false
+          if-no-files-found: error
+
+      - name: Upload evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: NEXUS-U013-SHARED-UX-V31-BASELINE-010-evidence
+          path: |
+            NEXUS-U013-SHARED-UX-V31-BASELINE-010-debug.apk.sha256
+            U013_COMPOSITION_LOCK.txt
+            /tmp/CORE.txt
+            /tmp/U013_STATIC.txt
+            /tmp/BADGING.txt
+          if-no-files-found: error
