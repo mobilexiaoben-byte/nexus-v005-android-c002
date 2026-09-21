@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="fr" data-theme="light">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NEXUS — Guest UX v3.1</title>
+<style>
+*{box-sizing:border-box} :root{--bg:#f7f7f8;--s:#fff;--t:#202123;--m:#6f7075;--b:#e5e5e7;--h:#ececf1}
+html[data-theme=dark]{--bg:#212121;--s:#2f2f2f;--t:#ececec;--m:#aaa;--b:#444;--h:#3a3a3a}
+html[data-theme=rasta]{--bg:#f7f7f4;--s:#fff;--t:#202123;--m:#6a685c;--b:#dedbc5;--h:#eef4e9}
+body{margin:0;background:var(--bg);color:var(--t);font:14px system-ui,-apple-system,Segoe UI,sans-serif}
+button,input,textarea,select{font:inherit;color:inherit}.app{display:block;min-height:100vh}
+aside{background:var(--s);border-right:1px solid var(--b);padding:12px;display:flex;flex-direction:column;gap:7px;position:fixed;left:0;top:0;height:100vh;width:260px;z-index:20;transform:translateX(-100%);transition:transform .2s ease;box-shadow:0 10px 30px #0002}aside.open{transform:translateX(0)}
+.brand{height:54px;display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--b);font-weight:900;letter-spacing:.22em;font-size:18px}
+button{border:0;background:transparent;border-radius:10px;padding:10px 12px;text-align:left;cursor:pointer}button:hover,.nav.active{background:var(--h)}
+.new{background:var(--t);color:var(--bg);font-weight:700}.search{border:1px solid var(--b);border-radius:10px;padding:8px 10px;background:var(--s)}
+.search input{border:0;outline:0;background:transparent;width:100%}.label{font-size:10px;color:var(--m);font-weight:800;letter-spacing:.08em;padding:10px 10px 3px}
+.spacer{flex:1}.bottom{border-top:1px solid var(--b);padding-top:7px}
+.workspace{min-width:0}.top{height:56px;border-bottom:1px solid var(--b);display:flex;align-items:center;justify-content:space-between;padding:0 18px;position:sticky;top:0;background:var(--bg);z-index:5}
+.main{max-width:860px;margin:auto;padding:38px 16px 100px}.page{display:none}.page.active{display:block}.home{padding-top:100px;text-align:center}.home h1{font-size:32px;font-weight:650}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:650px;margin:24px auto}.card{background:var(--s);border:1px solid var(--b);padding:16px;border-radius:14px}
+.card strong{display:block;margin-bottom:5px}.muted{color:var(--m)}.panel{background:var(--s);border:1px solid var(--b);border-radius:14px;padding:16px;margin:14px 0}
+textarea,select{width:100%;border:1px solid var(--b);background:var(--s);border-radius:10px;padding:11px}textarea{min-height:110px}
+.row{display:flex;gap:8px;flex-wrap:wrap}.btn{border:1px solid var(--b);background:var(--s)}.primary{background:var(--t);color:var(--bg)}
+.ctx{position:fixed;right:18px;top:70px;width:340px;max-width:calc(100vw - 36px);background:var(--s);border:1px solid var(--b);border-radius:14px;padding:14px;display:none;box-shadow:0 10px 30px #0002}.ctx.open{display:block}
+.badge{position:fixed;right:14px;bottom:14px;font-size:10px;color:var(--m);background:var(--s);border:1px solid var(--b);padding:6px 9px;border-radius:999px}
+@media(max-width:760px){.cards{grid-template-columns:1fr}} .mobile{display:inline-block;position:relative;z-index:30}
+
+.backdrop{position:fixed;inset:0;background:#0003;z-index:19;display:none}
+.backdrop.open{display:block}
+
+</style>
+</head>
+<body>
+<div id="backdrop" class="backdrop" onclick="closeSide()"></div>
+<div class="app">
+<aside id="side">
+<div class="brand">NEXUS</div>
+<button class="new" onclick="go('home')">＋ Nouveau</button>
+<div class="search"><input placeholder="Rechercher" oninput="filter(this.value)"></div>
+<button class="nav" data-p="works">Mes travaux</button>
+<button class="nav" data-p="fact">Fact Check</button>
+<button class="nav" data-p="maps">Cartes</button>
+<div class="label">TRAVAIL LOCAL</div>
+<button class="nav" data-p="subjects">Sujets persistants</button>
+<button class="nav" data-p="analyses">Analyses locales</button>
+<button class="nav" data-p="archives">Archives</button>
+<div class="label">RÉCENTS</div>
+<button class="recent">Relations Turquie–Israël</button>
+<button class="recent">Logistique russe et narratifs</button>
+<button class="recent">Fact Check — Hôpitaux</button>
+<div class="spacer"></div><div class="bottom">
+<button onclick="alert('Aide — prototype')">Aide</button>
+<button onclick="toggleSettings()">Paramètres</button>
+<button onclick="alert('Commentaires — prototype')">Commentaires</button>
+</div></aside>
+
+<section class="workspace">
+<header class="top"><div><button class="mobile" aria-label="Ouvrir le menu" onclick="toggleSide()">☰</button><strong id="title">NEXUS</strong></div><div><button onclick="ctx.classList.toggle('open')">✦</button><button onclick="toggleSettings()">···</button></div></header>
+<main class="main">
+<section id="home" class="page active home"><h1>Que voulez-vous faire avec NEXUS ?</h1><p class="muted">Prototype Guest WebApp · accès direct · sans authentification.</p><div class="cards">
+<button class="card" onclick="go('analysis')"><strong>Analyser une situation</strong><span class="muted">TH, sujets, analyse et cartographie contextuelle.</span></button>
+<button class="card" onclick="go('fact')"><strong>Vérifier une affirmation</strong><span class="muted">Claim, preuves, contradictions et verdict.</span></button>
+</div><div class="panel"><textarea placeholder="Décrivez ce que vous voulez faire…"></textarea></div></section>
+
+<section id="analysis" class="page"><h1>Analyse</h1><p class="muted">Workflow progressif simulé.</p><div class="panel"><label>TH</label><select><option>Syrie</option><option>Ukraine</option><option>Mer Rouge</option></select><br><br><textarea placeholder="Décrivez votre demande…"></textarea><br><br><button class="primary" onclick="alert('Paquet NEXUS simulé')">Préparer</button></div></section>
+
+<section id="fact" class="page"><h1>Fact Check</h1><p class="muted">Aucun TH requis.</p><div class="panel"><textarea placeholder="Collez une affirmation, un texte ou une URL…"></textarea><br><br><button class="primary">Préparer</button></div></section>
+
+<section id="maps" class="page"><h1>Cartes</h1><p class="muted">Disponible lorsque des signaux géographiques sont qualifiés.</p><div class="panel">Aucune carte prête.</div></section>
+
+<section id="works" class="page"><h1>Mes travaux</h1><p class="muted">Vue consolidée de l’espace local Guest.</p><div class="panel"><strong>Syrie</strong><p class="muted">3 analyses · 1 sujet actif</p></div><div class="panel"><strong>Ukraine</strong><p class="muted">2 analyses · 1 sujet actif</p></div></section>
+
+<section id="subjects" class="page"><h1>Sujets persistants</h1><div class="panel"><strong>Relations Turquie–Israël</strong><p class="muted">TH Syrie · actif</p></div><div class="panel"><strong>Logistique russe et narratifs</strong><p class="muted">TH Ukraine · actif</p></div></section>
+
+<section id="analyses" class="page"><h1>Analyses locales</h1><div class="panel"><strong>Dynamique turco-israélienne</strong><p class="muted">Analyse · Syrie</p></div><div class="panel"><strong>Logistique russe et frappes longue portée</strong><p class="muted">Analyse · Ukraine</p></div></section>
+
+<section id="archives" class="page"><h1>Archives</h1><div class="panel"><strong>Fact Check — Hôpitaux sur pied de guerre</strong><p class="muted">Archivé</p></div><div class="panel"><strong>Théâtre syrien — acteurs et influences</strong><p class="muted">Analyse archivée</p></div></section>
+</main></section></div>
+
+<div id="ctx" class="ctx"><strong>NEXUS Context</strong><p id="ctxtext" class="muted">Accueil NEXUS. Choisissez une opération.</p></div>
+<div id="settings" class="ctx"><strong>Paramètres</strong><p>Apparence</p><select onchange="document.documentElement.dataset.theme=this.value"><option value="light">Clair</option><option value="dark">Sombre</option><option value="rasta">Rasta</option></select></div>
+<div class="badge">MODE TEST · ACCÈS DIRECT</div>
+<script>
+
+function toggleSide(){
+  const s=document.getElementById('side');
+  const b=document.getElementById('backdrop');
+  const open=!s.classList.contains('open');
+  s.classList.toggle('open',open);
+  b.classList.toggle('open',open);
+}
+function closeSide(){
+  document.getElementById('side').classList.remove('open');
+  document.getElementById('backdrop').classList.remove('open');
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSide()});
+
+const labels={home:'NEXUS',analysis:'Analyse',fact:'Fact Check',maps:'Cartes',works:'Mes travaux',subjects:'Sujets persistants',analyses:'Analyses locales',archives:'Archives'};
+function go(p){document.querySelectorAll('.page').forEach(x=>x.classList.toggle('active',x.id===p));document.querySelectorAll('.nav').forEach(x=>x.classList.toggle('active',x.dataset.p===p));title.textContent=labels[p]||'NEXUS';ctxtext.textContent='Contexte courant : '+(labels[p]||'NEXUS')+'.';closeSide();scrollTo(0,0)}
+document.querySelectorAll('.nav').forEach(b=>b.onclick=()=>go(b.dataset.p));
+function filter(v){v=v.toLowerCase();document.querySelectorAll('.recent').forEach(b=>b.style.display=b.textContent.toLowerCase().includes(v)?'block':'none')}
+function toggleSettings(){settings.classList.toggle('open')}
+</script>
+</body></html>
