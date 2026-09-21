@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 import sys
 
 root=Path(sys.argv[1]).resolve()
@@ -11,9 +12,10 @@ adapter_dst.write_text(adapter_src.read_text())
 main=root/"app/src/main/java/nexus/android/c002/MainActivity.kt"
 s=main.read_text()
 
-class_anchor="class MainActivity : AppCompatActivity() {\n"
-assert s.count(class_anchor)==1, "MainActivity class anchor mismatch"
-s=s.replace(class_anchor,class_anchor+"    private lateinit var u013PlatformAdapter: AndroidPlatformAdapter\n",1)
+m=re.search(r'class\s+MainActivity\s*:[^{]+\{\n',s)
+assert m, "MainActivity class declaration not found"
+insert_at=m.end()
+s=s[:insert_at]+"    private lateinit var u013PlatformAdapter: AndroidPlatformAdapter\n"+s[insert_at:]
 
 content_anchor="        setContentView(R.layout.activity_main)\n"
 assert s.count(content_anchor)==1, "setContentView anchor mismatch"
