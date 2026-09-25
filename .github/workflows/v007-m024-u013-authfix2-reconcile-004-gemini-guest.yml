@@ -1,0 +1,137 @@
+name: V007 M024 U013 AUTHFIX2 RECONCILE-004 GEMINI guest-ready diagnostic
+
+on:
+  push:
+    branches: [v007-m024-u013-authfix2-reconcile-004-gemini-guest]
+    paths:
+      - '.github/workflows/v007-m024-u013-authfix2-reconcile-004-gemini-guest.yml'
+      - 'reconcile001/**'
+      - 'reconcile004/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Validate frozen C002 baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '26b5b157b487eda3a0c92198066d39beb5e6eb1149a3c4a705b49274c636eed4  V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip' | sha256sum -c -
+          rm -rf base work
+          mkdir -p base work
+          unzip -q V005_ANDROID_CHROMIUM_WEBVIEW_C002.zip -d base
+          cd base/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+          chmod +x run_validation.sh run_core_tests.sh
+          ./run_validation.sh | tee /tmp/C002_VALIDATION.txt
+          grep -F 'RESULT pass=25 fail=0' /tmp/C002_VALIDATION.txt
+          grep -F 'STATIC_RESULT pass=10 fail=0' /tmp/C002_VALIDATION.txt
+
+      - name: Derive U013 SHARED-009 including AUTHFIX2
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 u013ux009/derive.py "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          grep -F 'PLATFORM_ADAPTER=U013_ANDROID_UX_SHARED_009' "$ROOT/U013_BASELINE_LOCK.txt"
+          grep -F 'FACTCHECK_DEDICATED_RESULT_SCREEN=true' "$ROOT/U013_BASELINE_LOCK.txt"
+          grep -F 'AUTO_AUTH_MENU_PROBE' "$ROOT/app/src/main/assets/nexus/chatgpt_provider_c002.js"
+
+      - name: Apply M024 RECONCILE-002 patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 reconcile001/apply_reconcile.py "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+
+      - name: Add Gemini diagnostic provider
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 reconcile004/add_gemini.py "$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002" "$GITHUB_WORKSPACE"
+
+      - name: Validate reconciled source
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          MAIN="$ROOT/app/src/main/java/nexus/android/c002/MainActivity.kt"
+          CHAT="$ROOT/app/src/main/assets/nexus/chatgpt_provider_c002.js"
+          GEMINI="$ROOT/app/src/main/assets/nexus/gemini_provider_c002.js"
+          TC="$ROOT/app/src/main/java/nexus/android/c002/core/TransportContract.kt"
+          ORIGIN="$ROOT/app/src/main/java/nexus/android/c002/web/OriginPolicy.kt"
+          BRIDGE="$ROOT/app/src/main/java/nexus/android/c002/web/NexusWebBridge.kt"
+          "$ROOT/run_core_tests.sh" | tee /tmp/RECON_CORE.txt
+          grep -F 'RESULT pass=27 fail=0' /tmp/RECON_CORE.txt
+          grep -F 'ResearchPolicy' "$TC"
+          grep -F 'M024_RESOLVED_POLICY_REQUIRED' "$MAIN"
+          grep -F 'AUTO_AUTH_MENU_PROBE' "$CHAT"
+          grep -F 'EXECUTION_RESEARCH_POLICY_INVALID' "$GEMINI"
+          grep -F 'FACT CHECK O24' "$MAIN"
+          grep -F 'Choisir son LLM' "$MAIN"
+          grep -F 'popup.menu.add("Gemini")' "$MAIN"
+          grep -F '"Gemini" -> selectGeminiProvider()' "$MAIN"
+          grep -F 'webView.loadUrl(GEMINI_ORIGIN + "/")' "$MAIN"
+          grep -F '"GEMINI_STATUS" -> handleGeminiStatus(origin, message)' "$MAIN"
+          grep -F '"GUEST_READY" -> {' "$MAIN"
+          grep -F 'Gemini disponible · mode invité' "$MAIN"
+          grep -F "state='GUEST_READY'" "$GEMINI"
+          grep -F 'VISIBLE_GEMINI_COMPOSER_WITH_LOGIN_ACTION' "$GEMINI"
+          grep -F 'https://gemini.google.com' "$ORIGIN"
+          grep -F 'geminiAdapterScript' "$BRIDGE"
+          grep -F 'nexus.android.v007.m024.u013.reconcile004gemini' "$ROOT/app/build.gradle.kts"
+          ! grep -RIn -E 'ANDROID_EXTERNAL_RESEARCH_FORBIDDEN|EXTERNAL_RESEARCH_FORBIDDEN|externalResearch' "$ROOT/app/src/main" "$ROOT/core-tests" --exclude='*.class'
+          printf 'RECON_GEMINI_GUEST_STATIC_RESULT pass=19 fail=0\n' | tee /tmp/RECON_GEMINI_GUEST_STATIC.txt
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Apply NEXUS launcher branding
+        uses: mobilexiaoben-byte/nexus-v005-android-c002/branding@main
+        with:
+          root: ${{ github.workspace }}/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+
+      - name: Build APK
+        working-directory: work/V005_ANDROID_CHROMIUM_WEBVIEW_C002
+        shell: bash
+        run: gradle :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Verify APK and prepare evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="$GITHUB_WORKSPACE/work/V005_ANDROID_CHROMIUM_WEBVIEW_C002"
+          APK="$ROOT/app/build/outputs/apk/debug/app-debug.apk"
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)"
+          "$AAPT" dump badging "$APK" | tee /tmp/RECON_GEMINI_GUEST_BADGING.txt
+          grep -F "package: name='nexus.android.v007.m024.u013.reconcile004gemini'" /tmp/RECON_GEMINI_GUEST_BADGING.txt
+          grep -F "application-label:'NEXUS'" /tmp/RECON_GEMINI_GUEST_BADGING.txt
+          cp "$APK" NEXUS-V007-M024-U013-AUTHFIX2-RECONCILE-004-GEMINI-GUEST-debug.apk
+          sha256sum NEXUS-V007-M024-U013-AUTHFIX2-RECONCILE-004-GEMINI-GUEST-debug.apk | tee NEXUS-V007-M024-U013-AUTHFIX2-RECONCILE-004-GEMINI-GUEST-debug.apk.sha256
+          cp "$ROOT/RECONCILIATION_LOCK.txt" .
+          cp "$ROOT/U013_BASELINE_LOCK.txt" .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NEXUS-V007-M024-U013-AUTHFIX2-RECONCILE-004-GEMINI-GUEST-debug
+          path: |
+            NEXUS-V007-M024-U013-AUTHFIX2-RECONCILE-004-GEMINI-GUEST-debug.apk
+            NEXUS-V007-M024-U013-AUTHFIX2-RECONCILE-004-GEMINI-GUEST-debug.apk.sha256
+            RECONCILIATION_LOCK.txt
+            U013_BASELINE_LOCK.txt
+            /tmp/C002_VALIDATION.txt
+            /tmp/RECON_CORE.txt
+            /tmp/RECON_GEMINI_GUEST_STATIC.txt
+            /tmp/RECON_GEMINI_GUEST_BADGING.txt
+          if-no-files-found: error

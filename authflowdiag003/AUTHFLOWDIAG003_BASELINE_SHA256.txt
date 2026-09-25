@@ -1,0 +1,4 @@
+3540ddf94bf7e1693711140e8b43313c63989a021e795beaeef116acea8c03ce  app/src/main/java/nexus/android/c002/web/OriginPolicy.kt
+a842eb5d15d23b0ace09674585cefbfba2a753c155eeb5b0c0df6aaf9324275a  app/src/main/java/nexus/android/c002/web/NexusWebBridge.kt
+4a183b76dfb56eb9d2f51a553e69ad138a9dea1d251c221c5b6f09e6dbe618ea  app/src/main/assets/nexus/chatgpt_provider_c002.js
+f1dc78cdbadcc252a529c2db86b15ac42a92f0f2c132181cd1072bc24b131366  app/src/main/assets/nexus/claude_provider_c002.js
